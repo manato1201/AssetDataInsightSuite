@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - AssetDataInsightSuite{% endblock %}
+{% block content %}
+<section class="hero-card">
+  <h1>スキャンを実行</h1>
+  <form method="post" action="{{ url_for('trigger_scan') }}" class="scan-form">
+    <label>Producer
+      <select name="producer">
+        <option value="all">all</option>
+        {% for p in producers %}
+        <option value="{{ p }}">{{ p }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Target Path
+      <input type="text" name="target" placeholder="C:\path\to\assets" required>
+    </label>
+    <label>Since (ISO8601, 任意)
+      <input type="text" name="since" placeholder="2026-08-01T00:00:00Z">
+    </label>
+    <label class="checkbox-label">
+      <input type="checkbox" name="run_checks" checked> 取り込み後にルールチェックも実行する
+    </label>
+    <button type="submit" class="btn btn-primary">スキャン実行</button>
+  </form>
+</section>
+
+<section class="summary-row">
+  <div class="stat-tile">
+    <span class="stat-value">{{ total_defects }}</span>
+    <span class="stat-label">総defect数</span>
+  </div>
+  <div class="stat-tile severity-fail">
+    <span class="stat-value">{{ severity_counts.get('fail', 0) }}</span>
+    <span class="stat-label">fail</span>
+  </div>
+  <div class="stat-tile severity-warn">
+    <span class="stat-value">{{ severity_counts.get('warn', 0) }}</span>
+    <span class="stat-label">warn</span>
+  </div>
+  <div class="stat-tile severity-info">
+    <span class="stat-value">{{ severity_counts.get('info', 0) }}</span>
+    <span class="stat-label">info</span>
+  </div>
+</section>
+
+<section class="card">
+  <h2>スキャン履歴</h2>
+  <table>
+    <thead>
+      <tr><th>scan_run_id</th><th>producer</th><th>started_at</th><th>status</th><th></th></tr>
+    </thead>
+    <tbody>
+    {% for run in runs %}
+      <tr>
+        <td>{{ run['scan_run_id'] }}</td>
+        <td>{{ run['source_producer'] }}</td>
+        <td>{{ run['started_at'] }}</td>
+        <td><span class="status-pill status-{{ run['status'] }}">{{ run['status'] }}</span></td>
+        <td><a class="btn btn-soft" href="{{ url_for('run_detail', scan_run_id=run['scan_run_id']) }}">レポートを見る</a></td>
+      </tr>
+    {% else %}
+      <tr><td colspan="5">スキャン履歴がありません</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}
