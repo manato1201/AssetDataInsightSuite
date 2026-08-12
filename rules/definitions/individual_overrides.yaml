@@ -1,0 +1,12 @@
+rule_id: individual_fix_required
+module: rules.orphan_and_individual_fix
+severity: warn
+applies_to: [texture, model, material]
+params:
+  detect_orphans: true
+orphan_severity: info
+orphan_message: "シーン/プレハブ/Materialのいずれからも参照されていない孤立アセットです"
+overrides:
+  - asset_id: "Assets/Characters/hero_rig.fbx"
+    message: "テクスチャ参照が旧命名のまま。次回リギング更新時に個別対応"
+    suggested_fix: "hero_rig_v2への差し替え待ち"

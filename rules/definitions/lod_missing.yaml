@@ -1,0 +1,7 @@
+rule_id: lod_missing
+module: rules.lod_missing
+applies_to: [model]
+severity: warn
+params:
+  check_id: lod_group_configured
+message: "LODGroupが未設定です"
