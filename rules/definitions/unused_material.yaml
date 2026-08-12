@@ -1,0 +1,7 @@
+rule_id: unused_material
+module: rules.unused_material
+applies_to: [material]
+severity: warn
+params:
+  reference_graph_source: scene_and_prefab
+message: "シーン/プレハブから参照されていないMaterialです"

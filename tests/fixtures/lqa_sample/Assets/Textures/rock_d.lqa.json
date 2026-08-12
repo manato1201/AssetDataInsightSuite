@@ -1,0 +1,28 @@
+{
+  "asset_id": "Assets/Textures/rock_d.png",
+  "asset_type": "texture",
+  "records": [
+    {
+      "committed_at": "2026-07-01T00:00:00Z",
+      "size_bytes": 204800,
+      "extension": ".png",
+      "last_modified": "2026-06-30T12:00:00Z",
+      "checks": {
+        "naming_convention": {"status": "pass"},
+        "resolution_px": {"status": "info", "value": 2048}
+      }
+    },
+    {
+      "committed_at": "2026-08-01T00:00:00Z",
+      "size_bytes": 409600,
+      "extension": ".png",
+      "last_modified": "2026-07-30T12:00:00Z",
+      "checks": {
+        "naming_convention": {"status": "pass"},
+        "resolution_px": {"status": "info", "value": 4096},
+        "future_unknown_check": {"status": "warn", "message": "a check ID this Suite has never seen before"}
+      },
+      "conversion_errors": ["mip generation failed"]
+    }
+  ]
+}
