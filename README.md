@@ -37,6 +37,24 @@ python -m output.static_html_adapter --db insight.db --out-dir reports
 
 CIでの定期実行は [.github/workflows/insight-scan.yml](.github/workflows/insight-scan.yml) を参照。
 
+## 操作用GUI
+
+上記CLIを1画面から操作できるローカルWebダッシュボード(Flask)。スキャン実行・履歴閲覧・Defect一覧・トレンドを提供する。
+ローカル/単一ユーザー利用が前提で、認証機能は無い(既定で `127.0.0.1` のみ待受)。
+
+```bash
+python -m webapp.app --db insight.db --port 5000
+```
+
+起動後 `http://127.0.0.1:5000` を開く。
+
+- **Dashboard** — producer/target pathを指定してスキャン実行(取り込み+ルールチェック)、スキャン履歴一覧
+- **run詳細** — `report_manifest.json` の内容をそのまま表示。Excel/NDJSONダウンロード、静的HTMLレポート再生成もここから
+- **Defects** — 検出中の`defect_records`一覧、severityで絞り込み
+- **Trend** — scan_runごとの新規defect検出件数の推移
+
+GUIは既存の `ingest` / `rules` / `output` モジュールを直接呼び出すだけで、独自の集計・判定ロジックは持たない。
+
 ## テスト
 
 ```bash

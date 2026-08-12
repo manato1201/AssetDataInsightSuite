@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Defects - AssetDataInsightSuite{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>Defect一覧</h1>
+  <div class="filter-row">
+    <a class="btn btn-pill-sm {% if not severity_filter %}active{% endif %}" href="{{ url_for('defects_view') }}">すべて</a>
+    <a class="btn btn-pill-sm {% if severity_filter == 'fail' %}active{% endif %}" href="{{ url_for('defects_view', severity='fail') }}">fail</a>
+    <a class="btn btn-pill-sm {% if severity_filter == 'warn' %}active{% endif %}" href="{{ url_for('defects_view', severity='warn') }}">warn</a>
+    <a class="btn btn-pill-sm {% if severity_filter == 'info' %}active{% endif %}" href="{{ url_for('defects_view', severity='info') }}">info</a>
+  </div>
+  <table>
+    <thead>
+      <tr><th>asset_id</th><th>rule_id</th><th>severity</th><th>message</th><th>first_seen</th><th>last_seen</th></tr>
+    </thead>
+    <tbody>
+    {% for d in defects %}
+      <tr>
+        <td>{{ d['asset_id'] }}</td>
+        <td>{{ d['rule_id'] }}</td>
+        <td><span class="severity-pill severity-{{ d['severity'] }}">{{ d['severity'] }}</span></td>
+        <td>{{ d['message'] }}</td>
+        <td><a href="{{ url_for('run_detail', scan_run_id=d['first_seen_run_id']) }}">#{{ d['first_seen_run_id'] }}</a></td>
+        <td><a href="{{ url_for('run_detail', scan_run_id=d['last_seen_run_id']) }}">#{{ d['last_seen_run_id'] }}</a></td>
+      </tr>
+    {% else %}
+      <tr><td colspan="6">defectはありません</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

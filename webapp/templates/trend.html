@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Trend - AssetDataInsightSuite{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>Defect件数トレンド(検知run別)</h1>
+  <p class="meta">各scan_runで新規にfirst_seenとなったdefectの件数。「いつから壊れているか」の推移を表す。</p>
+  {% set max_value = values | max if values else 1 %}
+  {% for label, value in zip(labels, values) %}
+    <div class="bar-row">
+      <div class="bar-label">run #{{ label }}</div>
+      <div class="bar-track"><div class="bar-fill" style="width: {{ (value / (max_value or 1) * 100) | round(1) }}%"></div></div>
+      <div class="bar-value">{{ value }}</div>
+    </div>
+  {% else %}
+    <p class="meta">まだデータがありません。スキャンを実行してください。</p>
+  {% endfor %}
+</section>
+{% endblock %}
