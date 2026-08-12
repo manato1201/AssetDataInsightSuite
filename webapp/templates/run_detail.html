@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}scan_run #{{ run['scan_run_id'] }} - AssetDataInsightSuite{% endblock %}
+{% block content %}
+<section class="hero-card">
+  <h1>scan_run #{{ run['scan_run_id'] }}</h1>
+  <div class="meta">
+    producer: {{ run['source_producer'] }} / started_at: {{ run['started_at'] }} / status:
+    <span class="status-pill status-{{ run['status'] }}">{{ run['status'] }}</span>
+  </div>
+  <div class="action-row">
+    <a class="btn btn-soft" href="{{ url_for('export_excel', scan_run_id=run['scan_run_id']) }}">Excelダウンロード</a>
+    <a class="btn btn-soft" href="{{ url_for('export_ndjson_route', scan_run_id=run['scan_run_id']) }}">NDJSONダウンロード</a>
+    <a class="btn btn-outline" href="{{ url_for('regenerate_static', scan_run_id=run['scan_run_id']) }}">静的HTMLレポートを生成</a>
+    <a class="btn btn-outline" href="{{ url_for('dashboard') }}">Dashboardへ戻る</a>
+  </div>
+</section>
+
+{% for section in manifest['sections'] %}
+  {% if section['type'] == 'bar_chart' %}
+  <section class="card">
+    <h2>{{ section['title'] }}</h2>
+    {% set max_value = section['data']['values'] | max if section['data']['values'] else 1 %}
+    {% for label, value in zip(section['data']['labels'], section['data']['values']) %}
+      <div class="bar-row">
+        <div class="bar-label">{{ label }}</div>
+        <div class="bar-track"><div class="bar-fill" style="width: {{ (value / (max_value or 1) * 100) | round(1) }}%"></div></div>
+        <div class="bar-value">{{ value }}</div>
+      </div>
+    {% else %}
+      <p class="meta">データがありません</p>
+    {% endfor %}
+  </section>
+  {% elif section['type'] == 'table' %}
+  <section class="card">
+    <h2>{{ section['title'] }}</h2>
+    <table>
+      <thead><tr>{% for col in section['data']['columns'] %}<th>{{ col }}</th>{% endfor %}</tr></thead>
+      <tbody>
+      {% for row in section['data']['rows'] %}
+        <tr>
+        {% for cell in row %}
+          {% if loop.index0 == 2 %}
+            <td><span class="severity-pill severity-{{ cell }}">{{ cell }}</span></td>
+          {% else %}
+            <td>{{ cell }}</td>
+          {% endif %}
+        {% endfor %}
+        </tr>
+      {% else %}
+        <tr><td colspan="{{ section['data']['columns'] | length }}">検出された不具合はありません</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endif %}
+{% endfor %}
+{% endblock %}
