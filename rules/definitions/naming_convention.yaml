@@ -1,0 +1,7 @@
+rule_id: naming_convention
+module: rules.naming_convention
+applies_to: [texture, model, material]
+severity: warn
+params:
+  pattern: "^(T_|SM_|M_)[A-Za-z0-9_]+$"
+message: "命名規則(接頭辞 T_/SM_/M_)に違反しています"

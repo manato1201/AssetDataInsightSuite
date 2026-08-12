@@ -1,0 +1,7 @@
+rule_id: coding_convention
+module: rules.naming_convention
+applies_to: [script]
+severity: warn
+params:
+  pattern: "^[A-Z][A-Za-z0-9]+$"
+message: "コーディング規則(クラス名はUpperCamelCase)に違反しています"

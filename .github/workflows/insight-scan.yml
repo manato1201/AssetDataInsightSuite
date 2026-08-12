@@ -1,0 +1,71 @@
+name: insight-scan
+
+on:
+  schedule:
+    - cron: "0 21 * * *"   # 21:00 UTC = 06:00 JST
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -e .
+
+      - name: Ingest (fs_scan)
+        run: python -m ingest.run_scan --producer fs_scan --target . --db insight.db
+
+      - name: Run defect-detection rules
+        run: python -m rules.run_checks --target . --db insight.db
+
+      - name: CLI gate + manifest
+        id: cli_gate
+        run: python -m output.cli_adapter --db insight.db --fail-on warn --manifest-out report_manifest.json
+
+      - name: Generate offline static report
+        if: always()
+        run: python -m output.static_html_adapter --db insight.db --out-dir reports
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: insight-report
+          path: |
+            report_manifest.json
+            reports/
+
+      - name: Create failure issue (if not already open)
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --label insight-scan-failed --state open --json number --jq '.[0].number')
+          if [ -z "$existing" ]; then
+            gh issue create --repo "$GITHUB_REPOSITORY" \
+              --title "insight-scan failed: $(date -u +%Y-%m-%d)" \
+              --label insight-scan-failed \
+              --body "The insight-scan workflow failed. See run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          else
+            echo "insight-scan-failed issue #$existing already open, skipping duplicate creation"
+          fi
+
+      - name: Close failure issue on recovery
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          open_issues=$(gh issue list --repo "$GITHUB_REPOSITORY" --label insight-scan-failed --state open --json number --jq '.[].number')
+          for number in $open_issues; do
+            gh issue close "$number" --repo "$GITHUB_REPOSITORY" \
+              --comment "insight-scan succeeded again: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          done

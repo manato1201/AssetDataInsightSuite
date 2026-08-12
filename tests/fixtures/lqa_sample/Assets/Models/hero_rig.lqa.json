@@ -1,0 +1,15 @@
+{
+  "asset_id": "Assets/Characters/hero_rig.fbx",
+  "asset_type": "model",
+  "records": [
+    {
+      "committed_at": "2026-07-15T00:00:00Z",
+      "size_bytes": 5242880,
+      "extension": ".fbx",
+      "last_modified": "2026-07-14T09:00:00Z",
+      "checks": {
+        "lod_group_configured": {"status": "fail"}
+      }
+    }
+  ]
+}
