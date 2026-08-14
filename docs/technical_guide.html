@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AssetDataInsightSuite 技術解説書</title>
+<style>
+:root {
+  --canvas-dark: #000000;
+  --canvas-light: #ffffff;
+  --surface-soft: #f4f4f4;
+  --surface-elevated: #16181a;
+  --ink: #191c1f;
+  --mute: #505a63;
+  --stone: #8d969e;
+  --hairline-light: #e2e2e7;
+  --hairline-dark: rgba(255,255,255,0.12);
+  --primary: #494fdf;
+  --on-dark-mute: rgba(255,255,255,0.72);
+  --accent-danger: #e23b4a;
+  --accent-warning: #ec7e00;
+  --accent-green: #428619;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-full: 9999px;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: 'Inter', -apple-system, 'Segoe UI', sans-serif;
+  background: var(--surface-soft);
+  color: var(--ink);
+  line-height: 1.6;
+}
+h1, h2, h3 {
+  font-family: 'Aeonik Pro', 'Inter Display', 'Söhne', sans-serif;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  margin: 0 0 12px 0;
+}
+a { color: var(--primary); }
+code, pre {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+}
+pre {
+  background: var(--surface-elevated);
+  color: #ffffff;
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  overflow-x: auto;
+  font-size: 13px;
+}
+code:not(pre code) {
+  background: var(--surface-soft);
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 0.9em;
+}
+
+.hero { background: var(--canvas-dark); color: #ffffff; padding: 64px 24px; }
+.hero-inner, .page-inner { max-width: 1080px; margin: 0 auto; }
+.hero h1 { font-size: clamp(28px, 4vw, 44px); color: #ffffff; }
+.hero p { color: var(--on-dark-mute); font-size: 16px; max-width: 720px; }
+.hero-links { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 20px; }
+.pill-link {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-full);
+  padding: 6px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  background: var(--surface-elevated);
+  color: #ffffff;
+  border: 1px solid var(--hairline-dark);
+}
+
+nav.toc {
+  background: var(--canvas-light);
+  border-bottom: 1px solid var(--hairline-light);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.toc-inner { max-width: 1080px; margin: 0 auto; padding: 12px 24px; display: flex; gap: 16px; flex-wrap: wrap; }
+.toc-inner a { font-size: 13px; font-weight: 600; text-decoration: none; color: var(--mute); }
+.toc-inner a:hover { color: var(--primary); }
+
+main.page { max-width: 1080px; margin: 0 auto; padding: 48px 24px 96px; }
+section { margin-bottom: 56px; }
+section > p { color: var(--ink); }
+
+.card {
+  background: var(--canvas-light);
+  border: 1px solid var(--hairline-light);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+}
+
+/* --- flow diagram --- */
+.flow-row { display: flex; align-items: stretch; gap: 8px; flex-wrap: wrap; margin: 20px 0; }
+.flow-box {
+  background: var(--canvas-light);
+  border: 1px solid var(--hairline-light);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  font-size: 13px;
+  min-width: 140px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.flow-box strong { display: block; font-size: 13px; margin-bottom: 2px; }
+.flow-box span { color: var(--mute); font-size: 12px; }
+.flow-box.db { background: var(--surface-elevated); color: #fff; border-color: var(--surface-elevated); }
+.flow-box.db span { color: var(--on-dark-mute); }
+.flow-box.gui { background: var(--primary); color: #fff; border-color: var(--primary); }
+.flow-box.gui span { color: rgba(255,255,255,0.8); }
+.flow-arrow { align-self: center; color: var(--stone); font-size: 20px; padding: 0 2px; }
+.flow-stack { display: flex; flex-direction: column; gap: 6px; }
+.flow-outputs { display: flex; flex-direction: column; gap: 6px; }
+
+/* --- ER diagram --- */
+.er-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin: 20px 0; }
+.er-table {
+  border: 1px solid var(--hairline-light);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.er-table-name {
+  background: var(--surface-elevated);
+  color: #fff;
+  padding: 8px 14px;
+  font-weight: 600;
+  font-size: 13px;
+}
+.er-col { display: flex; justify-content: space-between; padding: 6px 14px; font-size: 12.5px; border-top: 1px solid var(--hairline-light); }
+.er-col .type { color: var(--stone); }
+.er-badge { display: inline-block; font-size: 10px; font-weight: 700; border-radius: 4px; padding: 1px 5px; margin-right: 6px; }
+.er-badge.pk { background: var(--primary); color: #fff; }
+.er-badge.fk { background: var(--surface-soft); color: var(--mute); }
+.er-relations { margin-top: 16px; padding-left: 20px; color: var(--mute); font-size: 13px; }
+
+/* --- sequence timeline --- */
+.timeline { list-style: none; margin: 20px 0; padding: 0; border-left: 2px solid var(--hairline-light); }
+.timeline li { position: relative; padding: 0 0 20px 24px; font-size: 13.5px; }
+.timeline li::before {
+  content: "";
+  position: absolute;
+  left: -7px;
+  top: 4px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--primary);
+  border: 2px solid var(--canvas-light);
+}
+.timeline .actor { font-weight: 700; color: var(--ink); }
+.timeline .note { color: var(--mute); }
+.timeline li.branch { margin-left: 16px; border-left: 2px dashed var(--hairline-light); padding-left: 20px; }
+
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--hairline-light); vertical-align: top; }
+th { color: var(--mute); font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 0.05em; }
+
+.phase-badge {
+  display: inline-block;
+  background: var(--surface-soft);
+  border-radius: var(--radius-full);
+  padding: 2px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+footer { background: var(--canvas-dark); color: var(--on-dark-mute); padding: 32px 24px; font-size: 13px; text-align: center; }
+
+@media (max-width: 640px) {
+  .flow-row { flex-direction: column; }
+  .flow-arrow { transform: rotate(90deg); }
+}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-inner">
+    <h1>AssetDataInsightSuite 技術解説書</h1>
+    <p>取り込み → 不具合検知 → トレンド集計 → 出力(CLI/Excel/NDJSON/静的HTML/GUI)を、insight.db (SQLite) を唯一の状態ストアとする単一パイプラインとして実装している。本書はその実装リファレンス。</p>
+    <div class="hero-links">
+      <a class="pill-link" href="../README.md">README</a>
+      <a class="pill-link" href="TECHNICAL_GUIDE.md">Markdown版(Mermaid)</a>
+      <a class="pill-link" href="../AssetDataInsightSuite_DESIGN.md">設計書</a>
+      <a class="pill-link" href="../AssetDataInsightSuite_UI_DESIGN.md">UI設計書</a>
+    </div>
+  </div>
+</div>
+
+<nav class="toc">
+  <div class="toc-inner">
+    <a href="#architecture">全体アーキテクチャ</a>
+    <a href="#data-model">データモデル</a>
+    <a href="#ci-sequence">CIシーケンス</a>
+    <a href="#gui-sequence">GUIシーケンス</a>
+    <a href="#modules">モジュール</a>
+    <a href="#manifest">manifestスキーマ</a>
+    <a href="#extend">拡張ガイド</a>
+    <a href="#testing">テスト</a>
+    <a href="#phases">フェーズ対応</a>
+  </div>
+</nav>
+
+<main class="page">
+
+<section id="architecture">
+  <h2>1. 全体アーキテクチャ</h2>
+  <p>4段(取り込み/検知/集計/出力)は互いに疎結合な「insight.dbの読み取りクライアント」。GUIは既存モジュールを直接呼ぶ薄いレイヤーで、独自の判定ロジックを持たない。</p>
+  <div class="card">
+    <div class="flow-row">
+      <div class="flow-stack">
+        <div class="flow-box"><strong>lqa adapter</strong><span>ingest/adapters</span></div>
+        <div class="flow-box"><strong>fs_scan adapter</strong><span>ingest/adapters</span></div>
+        <div class="flow-box"><strong>unity_asset adapter</strong><span>ingest/adapters</span></div>
+      </div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box db"><strong>insight.db</strong><span>scan_runs / asset_records / check_results</span></div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box"><strong>rules engine</strong><span>YAML定義駆動</span></div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box db"><strong>defect_records</strong><span>upsert</span></div>
+    </div>
+    <div class="flow-row">
+      <div class="flow-box db"><strong>insight.db</strong><span>scan_run_id別に集計</span></div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box"><strong>trend/aggregations.py</strong><span>純SQL集計</span></div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box"><strong>report_manifest.json</strong><span>ReportManifestBuilder(唯一の書き込み口)</span></div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-outputs">
+        <div class="flow-box"><strong>cli_adapter</strong><span>CIゲート exit 0/1/2</span></div>
+        <div class="flow-box"><strong>excel_adapter</strong><span>openpyxl</span></div>
+        <div class="flow-box"><strong>ndjson_export</strong><span>Elasticsearch _bulk</span></div>
+        <div class="flow-box"><strong>static_html_adapter</strong><span>オフラインHTML</span></div>
+      </div>
+    </div>
+    <div class="flow-row">
+      <div class="flow-box gui"><strong>webapp/app.py</strong><span>Flask操作GUI — ingest/rules/outputをトリガーするだけ</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="data-model">
+  <h2>2. データモデル(insight.db)</h2>
+  <p><code>scan_runs</code>/<code>asset_records</code>/<code>check_results</code>がPhase 1の正準スキーマ、<code>defect_records</code>がPhase 2の評価結果。全テーブルが<code>scan_run_id</code>を直接持つため、トレンド集計はJOINなしに<code>GROUP BY scan_run_id</code>だけで書ける。</p>
+  <div class="er-grid">
+    <div class="er-table">
+      <div class="er-table-name">scan_runs</div>
+      <div class="er-col"><span><span class="er-badge pk">PK</span>scan_run_id</span><span class="type">int</span></div>
+      <div class="er-col"><span>started_at / finished_at</span><span class="type">text</span></div>
+      <div class="er-col"><span>source_producer</span><span class="type">text</span></div>
+      <div class="er-col"><span>status</span><span class="type">running/success/failed</span></div>
+    </div>
+    <div class="er-table">
+      <div class="er-table-name">asset_records</div>
+      <div class="er-col"><span><span class="er-badge pk">PK</span>asset_record_id</span><span class="type">int</span></div>
+      <div class="er-col"><span><span class="er-badge fk">FK</span>scan_run_id</span><span class="type">int</span></div>
+      <div class="er-col"><span>asset_id / asset_type</span><span class="type">text</span></div>
+      <div class="er-col"><span>size_bytes / extension</span><span class="type">int / text</span></div>
+    </div>
+    <div class="er-table">
+      <div class="er-table-name">check_results</div>
+      <div class="er-col"><span><span class="er-badge pk">PK</span>check_result_id</span><span class="type">int</span></div>
+      <div class="er-col"><span><span class="er-badge fk">FK</span>asset_record_id, scan_run_id</span><span class="type">int</span></div>
+      <div class="er-col"><span>check_id</span><span class="type">可変マップのキー</span></div>
+      <div class="er-col"><span>status / value / threshold</span><span class="type">text</span></div>
+    </div>
+    <div class="er-table">
+      <div class="er-table-name">defect_records</div>
+      <div class="er-col"><span><span class="er-badge pk">PK</span>defect_record_id</span><span class="type">int</span></div>
+      <div class="er-col"><span>asset_id, rule_id</span><span class="type">UNIQUE</span></div>
+      <div class="er-col"><span>severity / message</span><span class="type">text</span></div>
+      <div class="er-col"><span><span class="er-badge fk">FK</span>first_seen_run_id, last_seen_run_id</span><span class="type">int</span></div>
+    </div>
+  </div>
+  <ul class="er-relations">
+    <li>scan_runs 1 &ndash;&lt; asset_records / check_results(1回のscanで複数asset・複数check)</li>
+    <li>asset_records 1 &ndash;&lt; check_results(1assetに複数check)</li>
+    <li>defect_records.first_seen_run_id / last_seen_run_id は scan_runs を参照(同一 asset_id + rule_id は1行のみ、upsertで更新)</li>
+  </ul>
+</section>
+
+<section id="ci-sequence">
+  <h2>3. シーケンス: CI定期実行</h2>
+  <p><code>.github/workflows/insight-scan.yml</code> が <code>schedule</code>(cron)と <code>workflow_dispatch</code>(手動)の両方で起動する。</p>
+  <div class="card">
+    <ol class="timeline">
+      <li><span class="actor">GitHub Actions</span> &rarr; <code>python -m ingest.run_scan --producer fs_scan</code></li>
+      <li><span class="note">insight.db に scan_run + asset_records を追記</span></li>
+      <li><span class="actor">GitHub Actions</span> &rarr; <code>python -m rules.run_checks</code></li>
+      <li><span class="note">defect_records を upsert</span></li>
+      <li><span class="actor">GitHub Actions</span> &rarr; <code>python -m output.cli_adapter --fail-on warn</code></li>
+      <li><span class="note">exit code (0=defectなし / 1=warn以上 / 2=fail検出 or 実行時エラー)</span></li>
+      <li class="branch">exit code &ne; 0 の場合: <code>insight-scan-failed</code> ラベルのopen Issueを検索 &rarr; 無ければ新規作成(重複防止)</li>
+      <li class="branch">成功した場合: open状態の <code>insight-scan-failed</code> Issueをすべてクローズ</li>
+    </ol>
+  </div>
+</section>
+
+<section id="gui-sequence">
+  <h2>4. シーケンス: GUIからのスキャン操作</h2>
+  <p>GUIはCLIと同じ関数を直接呼ぶだけで、判定ロジックの複製は一切ない。</p>
+  <div class="card">
+    <ol class="timeline">
+      <li><span class="actor">ユーザー</span> &rarr; <code>POST /scan</code>(producer, target, since, run_checks)</li>
+      <li><span class="note">Flask &rarr; <code>ingest.run_scan()</code> で scan_run + asset_records を追記</span></li>
+      <li class="branch">run_checksチェック時: <code>build_context()</code> + <code>run_all_rules()</code> &rarr; defect_records を upsert</li>
+      <li><span class="note">Flask &rarr; <code>/runs/&lt;scan_run_id&gt;</code> へ302リダイレクト</span></li>
+      <li><span class="actor">ユーザー</span> &rarr; <code>GET /runs/&lt;id&gt;</code></li>
+      <li><span class="note">Flask &rarr; <code>build_manifest(conn, scan_run_id)</code> &rarr; bar_chart / table セクションを取得</span></li>
+      <li><span class="note">Flask &rarr; レポート画面(HTML)をユーザーへ返す</span></li>
+    </ol>
+  </div>
+</section>
+
+<section id="modules">
+  <h2>5. モジュールリファレンス</h2>
+  <table>
+    <thead><tr><th>モジュール</th><th>役割</th><th>拡張ポイント</th></tr></thead>
+    <tbody>
+      <tr><td><code>core/schema.py</code></td><td>正準スキーマ AssetRecord / CheckResult(checksは可変dict)</td><td>個別の値は checks マップへ</td></tr>
+      <tr><td><code>core/db.py</code></td><td>SQLite DDL + 追記専用の挿入/更新ヘルパー</td><td>新テーブルは基本不要</td></tr>
+      <tr><td><code>ingest/adapters/registry.py</code></td><td>SourceAdapter Protocol + ADAPTER_REGISTRY + @register</td><td>新規プロデューサーは1ファイル追加のみ</td></tr>
+      <tr><td><code>ingest/adapters/*_adapter.py</code></td><td>lqa / fs_scan / unity_asset の各パース処理</td><td>&mdash;</td></tr>
+      <tr><td><code>ingest/run_scan.py</code></td><td>CLIエントリポイント。scan_runを発行</td><td>&mdash;</td></tr>
+      <tr><td><code>rules/engine.py</code></td><td>YAML定義を読み込み evaluate() を呼ぶ</td><td>ルール追加はYAML+evaluate()のみ</td></tr>
+      <tr><td><code>rules/naming_convention.py</code></td><td>regexベースの命名/コーディング規則違反検知</td><td>&mdash;</td></tr>
+      <tr><td><code>rules/lod_missing.py</code></td><td>lod_group_configured の pass/fail 判定</td><td>&mdash;</td></tr>
+      <tr><td><code>rules/unused_material.py</code></td><td>シーン/プレハブ参照グラフとMaterialのクロスチェック</td><td>&mdash;</td></tr>
+      <tr><td><code>rules/orphan_and_individual_fix.py</code></td><td>個別修正overrides + 汎用孤立アセット検知</td><td>&mdash;</td></tr>
+      <tr><td><code>trend/aggregations.py</code></td><td>純SQL集計関数群</td><td>関数を1つ追加するだけ</td></tr>
+      <tr><td><code>output/report_manifest.py</code></td><td>ReportManifestBuilder(唯一のmanifestプロデューサー)</td><td>add_section() を1行追加</td></tr>
+      <tr><td><code>output/cli_adapter.py</code></td><td>CIゲートCLI。severityからexit code算出</td><td>&mdash;</td></tr>
+      <tr><td><code>output/excel_adapter.py</code></td><td>manifestをそのままシート/チャートへ転記</td><td>&mdash;</td></tr>
+      <tr><td><code>output/ndjson_export.py</code></td><td>Elasticsearch _bulk互換NDJSON</td><td>&mdash;</td></tr>
+      <tr><td><code>output/static_html_adapter.py</code></td><td>オフライン静的HTML(Revolutトークン)</td><td>&mdash;</td></tr>
+      <tr><td><code>webapp/app.py</code></td><td>Flask操作GUI</td><td>ルート追加+テンプレート追加</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="manifest">
+  <h2>6. report_manifest.json スキーマ</h2>
+  <p>ReportManifestBuilder が唯一の書き込み口。CLI/Excel/静的HTML/GUIはすべてこの形を読むだけ。</p>
+  <pre>{
+  "manifest_version": "1.0",
+  "scan_run_id": 42,
+  "generated_at": "2026-08-11T09:00:00Z",
+  "sections": [
+    {
+      "section_id": "texture_resolution_histogram",
+      "type": "bar_chart",
+      "title": "テクスチャ解像度分布",
+      "data": { "labels": ["256","512","1024","2048","4096","4096+"], "values": [12,48,120,30,4,0] }
+    },
+    {
+      "section_id": "defect_summary",
+      "type": "table",
+      "title": "不具合一覧(severity&gt;=warn)",
+      "data": {
+        "columns": ["asset_id","rule_id","severity","first_seen_run_id"],
+        "rows": [["Assets/Textures/rock_d.png","naming_convention","warn",39]]
+      }
+    }
+  ]
+}</pre>
+  <p>現在 <code>build_manifest()</code> が生成するセクションは6つ: <code>texture_resolution_histogram</code> / <code>lod_fade_coverage</code> / <code>size_distribution</code> / <code>extension_breakdown</code> / <code>last_modified_distribution</code>(いずれも bar_chart)、<code>defect_summary</code>(table)。</p>
+</section>
+
+<section id="extend">
+  <h2>7. 拡張ガイド</h2>
+  <div class="card">
+    <h3>新しい取り込みプロデューサーを追加する</h3>
+    <ol>
+      <li><code>ingest/adapters/&lt;name&gt;_adapter.py</code> を作成し、<code>producer_id</code> と <code>scan(target_path, since)</code> を持つクラスを <code>@register</code> で登録</li>
+      <li><code>ingest/run_scan.py</code> の import 行にファイルを追記(登録の副作用のため)</li>
+      <li>その他は変更不要</li>
+    </ol>
+    <h3>新しい検知ルールを追加する</h3>
+    <ol>
+      <li><code>rules/definitions/&lt;rule_id&gt;.yaml</code> を作成</li>
+      <li>既存モジュールを再利用するか、<code>evaluate(context, rule_def) -&gt; list[DefectRecord]</code> を実装</li>
+      <li><code>rules/engine.py</code> / <code>rules/run_checks.py</code> は変更不要</li>
+    </ol>
+    <h3>新しい集計軸を追加する</h3>
+    <ol>
+      <li><code>trend/aggregations.py</code> に純SQL関数を1つ追加</li>
+      <li><code>output/report_manifest.py</code> の <code>build_manifest()</code> に <code>add_section()</code> を1行追加</li>
+      <li>CLI/Excel/静的HTML/GUIは自動的に反映</li>
+    </ol>
+    <h3>GUIに新しい画面を追加する</h3>
+    <ol>
+      <li><code>webapp/app.py</code> に <code>@app.route(...)</code> を追加</li>
+      <li><code>webapp/templates/</code> にテンプレートを追加(<code>base.html</code>を継承)</li>
+      <li><code>webapp/static/style.css</code> のトークンを再利用</li>
+    </ol>
+  </div>
+</section>
+
+<section id="testing">
+  <h2>8. テスト戦略</h2>
+  <pre>tests/
+  conftest.py              # fixtures_dir / lqa_sample_dir / fs_scan_sample_dir / db_path
+  fixtures/
+    lqa_sample/             # .lqa.json 固定フィクスチャ(未知checkId・conversion_errors含む)
+    fs_scan_sample/         # fs_scan固定フィクスチャ(命名規則違反・LOD未設定・未参照Material込み)
+  test_ingest.py            # AssetRecord正規化・冪等性・レジストリ
+  test_rules.py             # YAML駆動・命名規則・unused_material・individual override・upsert
+  test_trend.py             # z-score/IQR外れ値・純粋性
+  test_output.py            # CLI exit code・CLI/Excelの値一致・NDJSON形式・静的HTMLのオフライン性
+  test_webapp.py            # ダッシュボード/スキャン実行/Defect絞り込み/ダウンロード/404</pre>
+  <pre>python -m pytest -v</pre>
+</section>
+
+<section id="phases">
+  <h2>9. 設計書フェーズとの対応表</h2>
+  <table>
+    <thead><tr><th>Phase</th><th>内容</th><th>実装場所</th></tr></thead>
+    <tbody>
+      <tr><td><span class="phase-badge">Phase 0</span></td><td>コンセプト・入力契約・正準スキーマ</td><td><code>core/schema.py</code></td></tr>
+      <tr><td><span class="phase-badge">Phase 1</span></td><td>正規化取り込み層</td><td><code>core/db.py</code>, <code>ingest/</code></td></tr>
+      <tr><td><span class="phase-badge">Phase 2</span></td><td>不具合検知モジュール</td><td><code>rules/</code></td></tr>
+      <tr><td><span class="phase-badge">Phase 3</span></td><td>トレンド分析モジュール</td><td><code>trend/</code></td></tr>
+      <tr><td><span class="phase-badge">Phase 4</span></td><td>出力アダプタ層</td><td><code>output/report_manifest.py</code>, <code>cli_adapter.py</code>, <code>excel_adapter.py</code></td></tr>
+      <tr><td><span class="phase-badge">Phase 5</span></td><td>CI定期実行+Kibana連携+静的HTML</td><td><code>.github/workflows/insight-scan.yml</code>, <code>ndjson_export.py</code>, <code>static_html_adapter.py</code></td></tr>
+      <tr><td><span class="phase-badge">追加</span></td><td>操作用GUI</td><td><code>webapp/</code></td></tr>
+    </tbody>
+  </table>
+</section>
+
+</main>
+
+<footer>AssetDataInsightSuite &mdash; 技術解説書(オフライン、外部ネットワーク依存なし)</footer>
+</body>
+</html>
