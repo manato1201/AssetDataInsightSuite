@@ -38,7 +38,7 @@ from core import db as db_module
 from ingest.adapters import fs_scan_adapter, lqa_adapter, unity_asset_adapter  # noqa: F401
 from ingest.adapters.registry import ADAPTER_REGISTRY
 from ingest.run_scan import run_scan
-from output import excel_adapter, ndjson_export, static_html_adapter
+from output import excel_adapter, ndjson_export, static_html_adapter, webhook_notify
 from output.report_manifest import build_manifest
 from rules.definition_editor import (
     RuleDefinitionError,
@@ -52,14 +52,18 @@ from trend import aggregations
 from webapp.jobs import JobStore
 
 DEFAULT_DB_PATH = os.environ.get("INSIGHT_DB_PATH", "insight.db")
+DEFAULT_WEBHOOK_URL = os.environ.get("INSIGHT_WEBHOOK_URL") or None
 
 
 def create_app(
-    db_path: str = DEFAULT_DB_PATH, definitions_dir: Path = DEFINITIONS_DIR
+    db_path: str = DEFAULT_DB_PATH,
+    definitions_dir: Path = DEFINITIONS_DIR,
+    webhook_url: str | None = DEFAULT_WEBHOOK_URL,
 ) -> Flask:
     app = Flask(__name__)
     app.config["DB_PATH"] = db_path
     app.config["DEFINITIONS_DIR"] = definitions_dir
+    app.config["WEBHOOK_URL"] = webhook_url
     app.secret_key = secrets.token_hex(32)  # flash-message signing only, no login/auth
     app.jinja_env.globals["zip"] = zip
     jobs = JobStore()
@@ -132,7 +136,41 @@ def create_app(
         with db_module.open_db(app.config["DB_PATH"]) as conn:
             run_row = _fetch_run(conn, scan_run_id)
             builder = build_manifest(conn, scan_run_id)
-        return render_template("run_detail.html", run=run_row, manifest=builder.build())
+        return render_template(
+            "run_detail.html",
+            run=run_row,
+            manifest=builder.build(),
+            webhook_configured=bool(app.config["WEBHOOK_URL"]),
+        )
+
+    @app.route("/runs/<int:scan_run_id>/notify", methods=["POST"])
+    def notify_webhook(scan_run_id: int):
+        webhook_url = app.config["WEBHOOK_URL"]
+        if not webhook_url:
+            flash("Webhook URLが設定されていません(INSIGHT_WEBHOOK_URL)", "error")
+            return redirect(url_for("run_detail", scan_run_id=scan_run_id))
+
+        with db_module.open_db(app.config["DB_PATH"]) as conn:
+            _fetch_run(conn, scan_run_id)
+        try:
+            sent = webhook_notify.notify_if_needed(
+                app.config["DB_PATH"],
+                scan_run_id,
+                webhook_url,
+                fail_on="warn",
+                base_url=request.url_root,
+            )
+        except Exception as exc:
+            flash(f"通知の送信に失敗しました: {exc}", "error")
+            return redirect(url_for("run_detail", scan_run_id=scan_run_id))
+
+        flash(
+            "通知を送信しました"
+            if sent
+            else "warn以上のdefectがないため通知は送信されませんでした",
+            "success",
+        )
+        return redirect(url_for("run_detail", scan_run_id=scan_run_id))
 
     @app.route("/runs/<int:scan_run_id>/export.xlsx")
     def export_excel(scan_run_id: int):

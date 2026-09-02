@@ -5,6 +5,7 @@ import time
 
 from core import db as db_module
 from ingest.adapters import fs_scan_adapter  # noqa: F401
+from output import webhook_notify
 from rules.engine import DEFINITIONS_DIR
 from webapp.app import create_app
 
@@ -208,3 +209,43 @@ def test_rule_edit_post_rejects_invalid_yaml_and_keeps_file_unchanged(db_path, t
     )
     assert resp.status_code == 200  # re-renders the editor with the error, no redirect
     assert (definitions_dir / "naming_convention.yaml").read_text(encoding="utf-8") == original
+
+
+def test_run_detail_hides_notify_button_when_webhook_not_configured(db_path, fs_scan_sample_dir):
+    client = create_app(db_path, webhook_url=None).test_client()
+    data = _trigger_scan_and_wait(
+        client, producer="fs_scan", target=str(fs_scan_sample_dir), run_checks="on"
+    )
+    resp = client.get(f"/runs/{data['scan_run_ids'][0]}")
+    assert "INSIGHT_WEBHOOK_URL".encode() in resp.data
+
+
+def test_notify_without_webhook_configured_flashes_error(db_path, fs_scan_sample_dir):
+    client = create_app(db_path, webhook_url=None).test_client()
+    data = _trigger_scan_and_wait(
+        client, producer="fs_scan", target=str(fs_scan_sample_dir), run_checks="on"
+    )
+    resp = client.post(
+        f"/runs/{data['scan_run_ids'][0]}/notify", follow_redirects=True
+    )
+    assert resp.status_code == 200
+    assert "設定されていません".encode() in resp.data
+
+
+def test_notify_sends_when_webhook_configured(db_path, fs_scan_sample_dir, monkeypatch):
+    sent = []
+    monkeypatch.setattr(
+        webhook_notify, "send_webhook", lambda url, text, **k: sent.append((url, text))
+    )
+
+    client = create_app(db_path, webhook_url="https://example.invalid/webhook").test_client()
+    data = _trigger_scan_and_wait(
+        client, producer="fs_scan", target=str(fs_scan_sample_dir), run_checks="on"
+    )
+    resp = client.post(
+        f"/runs/{data['scan_run_ids'][0]}/notify", follow_redirects=True
+    )
+    assert resp.status_code == 200
+    assert "送信しました".encode() in resp.data
+    assert len(sent) == 1
+    assert sent[0][0] == "https://example.invalid/webhook"

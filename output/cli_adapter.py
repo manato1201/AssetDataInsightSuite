@@ -12,21 +12,20 @@ import sys
 
 from core import db as db_module
 from output.report_manifest import build_manifest
+from rules.schema import SEVERITY_RANK
 from trend.charts import render_bar_chart
-
-_SEVERITY_RANK = {"info": 0, "warn": 1, "fail": 2}
 
 
 def evaluate_exit_code(defect_rows: list, fail_on: str = "warn") -> int:
-    threshold = _SEVERITY_RANK.get(fail_on, 1)
+    threshold = SEVERITY_RANK.get(fail_on, 1)
     max_rank = 0
     for row in defect_rows:
-        rank = _SEVERITY_RANK.get(row["severity"], 0)
+        rank = SEVERITY_RANK.get(row["severity"], 0)
         max_rank = max(max_rank, rank)
 
     if max_rank == 0 or max_rank < threshold:
         return 0
-    return 2 if max_rank >= _SEVERITY_RANK["fail"] else 1
+    return 2 if max_rank >= SEVERITY_RANK["fail"] else 1
 
 
 def run(

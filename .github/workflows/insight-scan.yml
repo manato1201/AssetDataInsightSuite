@@ -55,6 +55,17 @@ jobs:
             report_manifest.json
             reports/
 
+      # Optional: only runs when the INSIGHT_WEBHOOK_URL secret is set, and
+      # never fails the job on notification errors (continue-on-error) — a
+      # webhook outage shouldn't affect the quality gate or issue tracking.
+      - name: Notify Slack/Teams webhook on fail-level defects
+        if: ${{ secrets.INSIGHT_WEBHOOK_URL != '' }}
+        continue-on-error: true
+        run: |
+          python -m output.webhook_notify --db insight.db --webhook-url "$INSIGHT_WEBHOOK_URL" --fail-on fail
+        env:
+          INSIGHT_WEBHOOK_URL: ${{ secrets.INSIGHT_WEBHOOK_URL }}
+
       # failure() here only reflects the checkout/setup/ingest/rules steps above
       # (continue-on-error steps are excluded from failure()/success() checks),
       # so this fires on real pipeline breakage, not on defects being found.
