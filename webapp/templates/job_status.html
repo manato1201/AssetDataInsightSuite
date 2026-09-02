@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}スキャン実行状況 - AssetDataInsightSuite{% endblock %}
+{% block content %}
+{% if job.status == 'running' %}
+<meta http-equiv="refresh" content="3">
+{% endif %}
+<section class="hero-card">
+  <h1 id="job-title">
+    {% if job.status == 'running' %}スキャン実行中…
+    {% elif job.status == 'success' %}スキャン完了
+    {% else %}スキャン失敗{% endif %}
+  </h1>
+  <p class="meta" id="job-progress">
+    {{ job.scan_run_ids | length }} / {{ job.producers | length }} producer完了
+    {% if job.current_producer %}(現在: {{ job.current_producer }}){% endif %}
+  </p>
+  <div class="bar-track" style="max-width:400px;">
+    <div class="bar-fill" id="job-bar" style="width: {{ ((job.scan_run_ids | length) / (job.producers | length) * 100) | round(1) }}%"></div>
+  </div>
+
+  <p class="meta" id="job-error" {% if not job.error %}hidden{% endif %} style="color:var(--accent-danger);margin-top:16px;">
+    {{ job.error }}
+  </p>
+
+  <div class="action-row">
+    <a class="btn btn-outline" href="{{ url_for('dashboard') }}">Dashboardへ戻る</a>
+  </div>
+</section>
+
+<script>
+(function () {
+  var statusUrl = {{ url_for('job_status_json', job_id=job.job_id) | tojson }};
+  function apply(data) {
+    var title = document.getElementById('job-title');
+    var progress = document.getElementById('job-progress');
+    var bar = document.getElementById('job-bar');
+    var errorBox = document.getElementById('job-error');
+    var pct = data.producers_total ? (data.producers_done / data.producers_total * 100) : 0;
+    bar.style.width = pct + '%';
+    progress.textContent = data.producers_done + ' / ' + data.producers_total + ' producer完了' +
+      (data.current_producer ? '(現在: ' + data.current_producer + ')' : '');
+
+    if (data.status === 'running') {
+      title.textContent = 'スキャン実行中…';
+      setTimeout(poll, 800);
+      return;
+    }
+    if (data.status === 'success') {
+      title.textContent = 'スキャン完了';
+      if (data.scan_run_ids.length === 1) {
+        window.location = '/runs/' + data.scan_run_ids[0];
+      } else {
+        window.location = '/';
+      }
+      return;
+    }
+    title.textContent = 'スキャン失敗';
+    errorBox.hidden = false;
+    errorBox.textContent = data.error;
+  }
+  function poll() {
+    fetch(statusUrl).then(function (r) { return r.json(); }).then(apply).catch(function () {
+      setTimeout(poll, 2000);
+    });
+  }
+  poll();
+})();
+</script>
+{% endblock %}
