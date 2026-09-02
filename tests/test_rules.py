@@ -9,6 +9,7 @@ from rules.engine import (
     load_rule_definitions,
     run_all_rules,
 )
+from rules.run_checks import run_checks
 
 
 def test_rule_definitions_are_loaded_from_yaml_not_hardcoded():
@@ -99,3 +100,83 @@ def test_defect_first_seen_last_seen_upsert_semantics(db_path, fs_scan_sample_di
         ).fetchone()
         assert row["first_seen_run_id"] == scan_run_id_1
         assert row["last_seen_run_id"] == scan_run_id_2
+
+
+def test_defect_resolves_when_fixed_in_place(db_path, tmp_path):
+    project = tmp_path / "project"
+    (project / "Assets" / "Textures").mkdir(parents=True)
+    bad = project / "Assets" / "Textures" / "bad_name.png"
+    bad.write_bytes(b"x")
+
+    scan_run_1 = run_scan(db_path, "fs_scan", str(project), since=None)
+    run_checks(db_path, str(project), scan_run_1)
+    with db_module.open_db(db_path) as conn:
+        open_defects = db_module.fetch_defect_records(conn)
+    assert any(d["asset_id"] == "Assets/Textures/bad_name.png" for d in open_defects)
+
+    bad.unlink()
+    (project / "Assets" / "Textures" / "T_bad_name.png").write_bytes(b"x")
+
+    scan_run_2 = run_scan(db_path, "fs_scan", str(project), since=None)
+    run_checks(db_path, str(project), scan_run_2)
+    with db_module.open_db(db_path) as conn:
+        open_defects = db_module.fetch_defect_records(conn)
+        all_defects = db_module.fetch_defect_records(conn, include_resolved=True)
+
+    assert not any(
+        d["asset_id"] == "Assets/Textures/bad_name.png" for d in open_defects
+    )
+    resolved = next(
+        d for d in all_defects if d["asset_id"] == "Assets/Textures/bad_name.png"
+    )
+    assert resolved["resolved_run_id"] == scan_run_2
+
+
+def test_defect_resolves_when_asset_deleted(db_path, tmp_path):
+    project = tmp_path / "project"
+    (project / "Assets" / "Textures").mkdir(parents=True)
+    bad = project / "Assets" / "Textures" / "bad_name.png"
+    bad.write_bytes(b"x")
+
+    scan_run_1 = run_scan(db_path, "fs_scan", str(project), since=None)
+    run_checks(db_path, str(project), scan_run_1)
+
+    bad.unlink()
+
+    scan_run_2 = run_scan(db_path, "fs_scan", str(project), since=None)
+    run_checks(db_path, str(project), scan_run_2)
+    with db_module.open_db(db_path) as conn:
+        open_defects = db_module.fetch_defect_records(conn)
+    assert not any(
+        d["asset_id"] == "Assets/Textures/bad_name.png" for d in open_defects
+    )
+
+
+def test_resolved_defect_reopens_if_it_regresses(db_path, tmp_path):
+    project = tmp_path / "project"
+    (project / "Assets" / "Textures").mkdir(parents=True)
+    bad = project / "Assets" / "Textures" / "bad_name.png"
+    bad.write_bytes(b"x")
+
+    scan_run_1 = run_scan(db_path, "fs_scan", str(project), since=None)
+    run_checks(db_path, str(project), scan_run_1)
+
+    bad.unlink()
+    scan_run_2 = run_scan(db_path, "fs_scan", str(project), since=None)
+    run_checks(db_path, str(project), scan_run_2)
+    with db_module.open_db(db_path) as conn:
+        resolved = db_module.fetch_defect_records(conn, include_resolved=True)
+    assert (
+        next(d for d in resolved if d["asset_id"] == "Assets/Textures/bad_name.png")[
+            "resolved_run_id"
+        ]
+        is not None
+    )
+
+    # regression: the same badly-named file comes back
+    bad.write_bytes(b"x")
+    scan_run_3 = run_scan(db_path, "fs_scan", str(project), since=None)
+    run_checks(db_path, str(project), scan_run_3)
+    with db_module.open_db(db_path) as conn:
+        open_defects = db_module.fetch_defect_records(conn)
+    assert any(d["asset_id"] == "Assets/Textures/bad_name.png" for d in open_defects)
