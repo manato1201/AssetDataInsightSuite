@@ -38,10 +38,12 @@ flowchart LR
     F --> G2["output/excel_adapter<br/>openpyxl"]
     F --> G3["output/ndjson_export<br/>Elasticsearch _bulk"]
     F --> G4["output/static_html_adapter<br/>オフライン静的HTML"]
+    F --> G5["output/webhook_notify<br/>Slack/Teams"]
     DB --> H["webapp/app.py<br/>Flask操作GUI"]
-    H -.trigger.-> B
-    H -.trigger.-> C
+    H -.非同期trigger.-> B
+    H -.非同期trigger.-> C
     H -.表示.-> F
+    H --> I["rules/definition_editor.py<br/>rules/definitions/*.yaml編集"]
 ```
 
 **設計原則(コードに落とし込まれているもの):**
@@ -105,12 +107,19 @@ erDiagram
         text suggested_fix
         int first_seen_run_id FK
         int last_seen_run_id FK
+        int resolved_run_id FK "nullable、解消runを追記マイグレーション"
     }
 ```
 
 `defect_records`は`(asset_id, rule_id)`にUNIQUE制約を持ち、`core/db.py`の`upsert_defect_record()`が
-「既存なら`last_seen_run_id`のみ更新、新規なら`first_seen_run_id == last_seen_run_id == 今回のscan_run_id`」
-という上書きロジックを担う。これがPhase 3の「いつから壊れているか」トレンドの供給元になる。
+「既存なら`last_seen_run_id`のみ更新(かつ`resolved_run_id`をNULLへ再オープン)、新規なら
+`first_seen_run_id == last_seen_run_id == 今回のscan_run_id`」という上書きロジックを担う。
+これがトレンドの「いつから壊れているか」の供給元になる。
+
+`resolved_run_id`は`core/db.py::_migrate()`が`connect()`のたびにチェックする追記マイグレーションで、
+既存の`insight.db`にも自動で列が追加される。`rules/run_checks.py`が、実際に再評価された(rescanまたは
+`diff_against_previous()`のremoved_idsで削除確認済みの)アセットについてのみ、直近の検知結果に
+含まれなくなったdefectへ`resolved_run_id`を書き込む。
 
 ---
 
@@ -184,15 +193,18 @@ sequenceDiagram
 | `rules/lod_missing.py` | `lod_group_configured`チェックのpass/fail判定 | — |
 | `rules/unused_material.py` | `.unity`/`.prefab`をスキャンして参照グラフを構築し、Materialの被参照有無を判定 | — |
 | `rules/orphan_and_individual_fix.py` | `overrides:`リストの個別修正指摘 + 汎用孤立アセット検知 | — |
-| `rules/run_checks.py` | CLIエントリポイント。`RuleContext`構築→全ルール実行→`defect_records`upsert | — |
-| `trend/aggregations.py` | 純SQL集計関数群(ヒストグラム/カバレッジ/外れ値/分布) | 新しい集計軸を増やすときはここに関数を1つ追加するだけ |
-| `trend/charts.py` | 集計結果を受け取って描画するだけ(SQLを直接叩かない) | — |
+| `rules/run_checks.py` | CLIエントリポイント。`RuleContext`構築→全ルール実行→`defect_records`upsert→解決したdefectを`resolved_run_id`でクローズ | — |
+| `rules/definition_editor.py` | `rules/definitions/*.yaml`の読み書き(GUI用)。保存前にYAML構文+必須キーを検証、パストラバーサル対策込み | — |
+| `trend/aggregations.py` | 純SQL集計関数群(ヒストグラム/カバレッジ/外れ値/分布/scan間差分/時系列推移) | 新しい集計軸を増やすときはここに関数を1つ追加するだけ |
+| `trend/charts.py` | 集計結果を受け取って描画するだけ(SQLを直接叩かない)。`output/cli_adapter.py`のASCIIバーチャート表示に使用 | — |
 | `output/report_manifest.py` | `ReportManifestBuilder`(唯一のmanifestプロデューサー)+ `build_manifest()` | 新しいセクションは`build_manifest()`に`add_section()`を1行追加するだけ |
-| `output/cli_adapter.py` | CIゲートCLI。severityからexit codeを算出 | — |
-| `output/excel_adapter.py` | manifestセクションをそのままシート/チャートへ転記するだけ | — |
+| `output/cli_adapter.py` | CIゲートCLI。severityからexit codeを算出、diff/バーチャートも表示 | — |
+| `output/excel_adapter.py` | manifestセクションをそのままシート/チャートへ転記するだけ(シート名重複は自動リネーム) | — |
 | `output/ndjson_export.py` | Elasticsearch `_bulk`互換NDJSONエクスポート | — |
 | `output/static_html_adapter.py` | オフライン静的HTML生成。`AssetDataInsightSuite_UI_DESIGN.md`のRevolutトークンでスタイリング | — |
-| `webapp/app.py` | Flask操作GUI。ingest/rules/outputを直接呼ぶだけの薄いレイヤー | 新しい画面はルート追加+テンプレート追加 |
+| `output/webhook_notify.py` | Slack互換Webhook通知(`{"text": ...}`)。fail以上のdefectがある場合のみ送信 | — |
+| `webapp/app.py` | Flask操作GUI。ingest/rules/output/trendを直接呼ぶだけの薄いレイヤー | 新しい画面はルート追加+テンプレート追加 |
+| `webapp/jobs.py` | スキャンをバックグラウンドスレッドで実行する`JobStore`(進捗ポーリング用、DB非永続) | — |
 
 ---
 
