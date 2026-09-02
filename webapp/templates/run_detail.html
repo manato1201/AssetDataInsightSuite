@@ -11,6 +11,13 @@
     <a class="btn btn-soft" href="{{ url_for('export_excel', scan_run_id=run['scan_run_id']) }}">Excelダウンロード</a>
     <a class="btn btn-soft" href="{{ url_for('export_ndjson_route', scan_run_id=run['scan_run_id']) }}">NDJSONダウンロード</a>
     <a class="btn btn-outline" href="{{ url_for('regenerate_static', scan_run_id=run['scan_run_id']) }}">静的HTMLレポートを生成</a>
+    {% if webhook_configured %}
+    <form method="post" action="{{ url_for('notify_webhook', scan_run_id=run['scan_run_id']) }}" style="display:inline;">
+      <button type="submit" class="btn btn-outline">Slack/Teamsへ通知</button>
+    </form>
+    {% else %}
+    <span class="btn btn-outline" style="opacity:0.5;cursor:not-allowed;" title="INSIGHT_WEBHOOK_URL が未設定です">Slack/Teamsへ通知</span>
+    {% endif %}
     <a class="btn btn-outline" href="{{ url_for('dashboard') }}">Dashboardへ戻る</a>
   </div>
 </section>

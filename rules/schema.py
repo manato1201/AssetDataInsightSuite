@@ -2,6 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+# Shared severity ordering — the single source of truth for anything that
+# needs to compare or threshold severities (CI exit codes, webhook
+# notification gating, etc.).
+SEVERITY_RANK = {"info": 0, "warn": 1, "fail": 2}
+
 
 @dataclass
 class DefectRecord:
