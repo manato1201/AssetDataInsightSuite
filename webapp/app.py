@@ -40,15 +40,25 @@ from ingest.adapters.registry import ADAPTER_REGISTRY
 from ingest.run_scan import run_scan
 from output import excel_adapter, ndjson_export, static_html_adapter
 from output.report_manifest import build_manifest
+from rules.definition_editor import (
+    RuleDefinitionError,
+    list_definition_filenames,
+    read_definition_source,
+    write_definition_source,
+)
+from rules.engine import DEFINITIONS_DIR, load_rule_definitions
 from rules.run_checks import run_checks
 from webapp.jobs import JobStore
 
 DEFAULT_DB_PATH = os.environ.get("INSIGHT_DB_PATH", "insight.db")
 
 
-def create_app(db_path: str = DEFAULT_DB_PATH) -> Flask:
+def create_app(
+    db_path: str = DEFAULT_DB_PATH, definitions_dir: Path = DEFINITIONS_DIR
+) -> Flask:
     app = Flask(__name__)
     app.config["DB_PATH"] = db_path
+    app.config["DEFINITIONS_DIR"] = definitions_dir
     app.secret_key = secrets.token_hex(32)  # flash-message signing only, no login/auth
     app.jinja_env.globals["zip"] = zip
     jobs = JobStore()
@@ -192,6 +202,38 @@ def create_app(db_path: str = DEFAULT_DB_PATH) -> Flask:
         labels = [str(r["scan_run_id"]) for r in rows]
         values = [r["c"] for r in rows]
         return render_template("trend.html", labels=labels, values=values)
+
+    @app.route("/rules")
+    def rules_list():
+        definitions_dir = app.config["DEFINITIONS_DIR"]
+        definitions = []
+        for filename, rule_def in zip(
+            list_definition_filenames(definitions_dir),
+            load_rule_definitions(definitions_dir),
+        ):
+            definitions.append({"filename": filename, **rule_def})
+        return render_template("rules_list.html", definitions=definitions)
+
+    @app.route("/rules/<filename>/edit", methods=["GET", "POST"])
+    def rule_edit(filename: str):
+        definitions_dir = app.config["DEFINITIONS_DIR"]
+        if request.method == "POST":
+            source = request.form.get("source", "")
+            try:
+                write_definition_source(filename, source, definitions_dir)
+            except RuleDefinitionError as exc:
+                flash(str(exc), "error")
+                return render_template(
+                    "rule_edit.html", filename=filename, source=source
+                )
+            flash(f"{filename} を保存しました", "success")
+            return redirect(url_for("rules_list"))
+
+        try:
+            source = read_definition_source(filename, definitions_dir)
+        except RuleDefinitionError:
+            abort(404)
+        return render_template("rule_edit.html", filename=filename, source=source)
 
     return app
 

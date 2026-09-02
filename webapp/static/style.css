@@ -159,6 +159,21 @@ th { color: var(--mute); font-weight: 600; text-transform: uppercase; font-size:
 
 .filter-row { display: flex; gap: 8px; margin-bottom: 16px; }
 
+.yaml-editor {
+  width: 100%;
+  min-height: 320px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  border: 1px solid var(--hairline-light);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  background: var(--surface-soft);
+  color: var(--ink);
+  resize: vertical;
+  box-sizing: border-box;
+}
+
 @media (max-width: 640px) {
   .summary-row { grid-template-columns: repeat(2, 1fr); }
   .bar-label { width: 90px; font-size: 12px; }
