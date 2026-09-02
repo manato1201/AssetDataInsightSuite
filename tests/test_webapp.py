@@ -118,6 +118,44 @@ def test_defects_page_filters_by_severity(db_path, fs_scan_sample_dir):
     assert b"severity-info" not in tbody
 
 
+def test_defects_page_search_filters_by_asset_id_rule_id_or_message(
+    db_path, fs_scan_sample_dir
+):
+    client = create_app(db_path).test_client()
+    _trigger_scan_and_wait(
+        client, producer="fs_scan", target=str(fs_scan_sample_dir), run_checks="on"
+    )
+
+    resp = client.get("/defects?q=unused_material")
+    assert resp.status_code == 200
+    tbody = resp.data.split(b"<tbody>")[1].split(b"</tbody>")[0]
+    assert b"unused_material" in tbody
+    assert b"naming_convention" not in tbody
+
+    resp_none = client.get("/defects?q=this-matches-nothing")
+    assert "defectはありません".encode() in resp_none.data
+
+
+def test_defects_export_csv_respects_filters(db_path, fs_scan_sample_dir):
+    client = create_app(db_path).test_client()
+    _trigger_scan_and_wait(
+        client, producer="fs_scan", target=str(fs_scan_sample_dir), run_checks="on"
+    )
+
+    resp = client.get("/defects/export.csv?severity=warn")
+    assert resp.status_code == 200
+    assert resp.mimetype == "text/csv"
+    text = resp.data.decode("utf-8-sig")
+    assert text.startswith("asset_id,rule_id,severity,message")
+    lines = [line for line in text.splitlines() if line]
+    assert all(",warn," in line for line in lines[1:])
+
+    resp_scoped = client.get("/defects/export.csv?q=unused_material")
+    text_scoped = resp_scoped.data.decode("utf-8-sig")
+    assert "unused_material" in text_scoped
+    assert "naming_convention" not in text_scoped
+
+
 def test_trend_page_loads_without_data(db_path):
     client = create_app(db_path).test_client()
     resp = client.get("/trend")
