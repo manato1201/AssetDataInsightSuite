@@ -46,13 +46,22 @@ def run(
                 builder.write(manifest_path)
 
             for section in builder.build()["sections"]:
-                if section["type"] != "bar_chart":
-                    continue
-                chart_data = dict(
-                    zip(section["data"]["labels"], section["data"]["values"])
-                )
-                print(render_bar_chart(chart_data, section["title"]))
-                print()
+                if section["type"] == "diff_summary":
+                    d = section["data"]
+                    if d["previous_scan_run_id"] is None:
+                        print(f"{section['title']}: (前回scanなし、初回scan)")
+                    else:
+                        print(
+                            f"{section['title']} (vs scan_run #{d['previous_scan_run_id']}): "
+                            f"新規={d['added_count']} 変更={d['changed_count']} 削除={d['removed_count']}"
+                        )
+                    print()
+                elif section["type"] == "bar_chart":
+                    chart_data = dict(
+                        zip(section["data"]["labels"], section["data"]["values"])
+                    )
+                    print(render_bar_chart(chart_data, section["title"]))
+                    print()
 
             for row in defect_rows:
                 print(

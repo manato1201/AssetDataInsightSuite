@@ -96,3 +96,54 @@ def test_extension_breakdown(db_path):
     with db_module.open_db(db_path) as conn:
         breakdown = aggregations.extension_breakdown(conn, scan_run_id)
         assert breakdown[".png"] == 2
+
+
+def test_diff_against_previous_has_no_baseline_on_first_scan(db_path):
+    scan_run_id = _seed_texture_records(db_path, [(1000, 256)])
+    with db_module.open_db(db_path) as conn:
+        diff = aggregations.diff_against_previous(conn, scan_run_id)
+    assert diff["previous_scan_run_id"] is None
+    assert diff["added_ids"] == diff["changed_ids"] == diff["removed_ids"] == []
+
+
+def test_diff_against_previous_detects_added_changed_removed(db_path):
+    def _record(asset_id, size_bytes):
+        return AssetRecord(
+            asset_id=asset_id,
+            asset_type="texture",
+            source_producer="fs_scan",
+            collected_at="2026-08-01T00:00:00Z",
+            size_bytes=size_bytes,
+            extension=".png",
+            last_modified="2026-08-01T00:00:00Z",
+            checks={},
+        )
+
+    with db_module.open_db(db_path) as conn:
+        run1 = db_module.start_scan_run(
+            conn, "fs_scan", "0.1.0", "2026-08-01T00:00:00Z"
+        )
+        db_module.insert_asset_records(
+            conn,
+            run1,
+            [_record("a.png", 1000), _record("b.png", 2000), _record("c.png", 3000)],
+        )
+        db_module.finish_scan_run(conn, run1, "2026-08-01T00:05:00Z", "success")
+
+        # a.png unchanged, b.png size changed, c.png removed, d.png newly added
+        run2 = db_module.start_scan_run(
+            conn, "fs_scan", "0.1.0", "2026-08-02T00:00:00Z"
+        )
+        db_module.insert_asset_records(
+            conn,
+            run2,
+            [_record("a.png", 1000), _record("b.png", 9999), _record("d.png", 4000)],
+        )
+        db_module.finish_scan_run(conn, run2, "2026-08-02T00:05:00Z", "success")
+
+        diff = aggregations.diff_against_previous(conn, run2)
+
+    assert diff["previous_scan_run_id"] == run1
+    assert diff["added_ids"] == ["d.png"]
+    assert diff["changed_ids"] == ["b.png"]
+    assert diff["removed_ids"] == ["c.png"]

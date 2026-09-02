@@ -62,6 +62,17 @@ def write_workbook(builder: ReportManifestBuilder, out_path: str) -> None:
             for row in data["rows"]:
                 ws.append(row)
 
+        elif section["type"] == "diff_summary":
+            ws.append(["previous_scan_run_id", data["previous_scan_run_id"]])
+            ws.append(["added_count", data["added_count"]])
+            ws.append(["changed_count", data["changed_count"]])
+            ws.append(["removed_count", data["removed_count"]])
+            ws.append([])
+            for kind in ("added_ids", "changed_ids", "removed_ids"):
+                ws.append([kind])
+                for asset_id in data[kind]:
+                    ws.append(["", asset_id])
+
     wb.save(out_path)
 
 

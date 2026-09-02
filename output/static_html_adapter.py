@@ -102,6 +102,14 @@ body {
 .bar-value { width: 56px; flex-shrink: 0; font-size: 14px; font-weight: 600; color: #191c1f; }
 @keyframes growBar { from { width: 0; } to { width: var(--bar-width); } }
 
+.diff-row { display: flex; gap: 12px; flex-wrap: wrap; }
+.diff-tile { flex: 1; min-width: 140px; border-radius: 12px; padding: 16px; background: #f4f4f4; }
+.diff-tile .n { display: block; font-size: 28px; font-weight: 600; }
+.diff-tile.added .n { color: #428619; }
+.diff-tile.changed .n { color: #ec7e00; }
+.diff-tile.removed .n { color: #e23b4a; }
+.diff-tile .l { font-size: 13px; color: #505a63; }
+
 table { width: 100%; border-collapse: collapse; font-size: 14px; }
 th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #e2e2e7; }
 th { color: #505a63; font-weight: 600; text-transform: uppercase; font-size: 12px; letter-spacing: 0.05em; }
@@ -178,10 +186,28 @@ def _render_table(section: dict) -> str:
     )
 
 
+def _render_diff_summary(section: dict) -> str:
+    data = section["data"]
+    if data["previous_scan_run_id"] is None:
+        body = '<p style="color:#505a63;font-size:14px;margin:0;">前回scanがないため比較できません(初回scan)。</p>'
+    else:
+        body = (
+            '<div class="diff-row">'
+            f'<div class="diff-tile added"><span class="n">{data["added_count"]}</span><span class="l">新規</span></div>'
+            f'<div class="diff-tile changed"><span class="n">{data["changed_count"]}</span><span class="l">変更</span></div>'
+            f'<div class="diff-tile removed"><span class="n">{data["removed_count"]}</span><span class="l">削除</span></div>'
+            "</div>"
+            f'<p style="color:#8d969e;font-size:12px;margin-top:12px;">vs scan_run #{data["previous_scan_run_id"]}</p>'
+        )
+    return f'<div class="card"><h2 class="section-title">{escape(section["title"])}</h2>{body}</div>'
+
+
 def render_html(manifest: dict) -> str:
     sections_html = []
     for section in manifest["sections"]:
-        if section["type"] == "bar_chart":
+        if section["type"] == "diff_summary":
+            sections_html.append(_render_diff_summary(section))
+        elif section["type"] == "bar_chart":
             sections_html.append(_render_bar_chart(section))
         elif section["type"] == "table":
             sections_html.append(_render_table(section))

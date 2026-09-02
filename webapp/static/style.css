@@ -118,6 +118,17 @@ h2 { font-size: 20px; }
 .stat-tile.severity-fail .stat-value { color: var(--accent-danger); }
 .stat-tile.severity-warn .stat-value { color: var(--accent-warning); }
 .stat-tile.severity-info .stat-value { color: var(--accent-green); }
+.stat-tile.added .stat-value { color: var(--accent-green); }
+.stat-tile.changed .stat-value { color: var(--accent-warning); }
+.stat-tile.removed .stat-value { color: var(--accent-danger); }
+
+.diff-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 12px; }
+details.id-list { margin-top: 8px; font-size: 13px; color: var(--mute); }
+details.id-list summary { cursor: pointer; font-weight: 600; }
+details.id-list ul { margin: 8px 0 0 0; padding-left: 18px; max-height: 200px; overflow-y: auto; }
+
+.resolved-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--hairline-light); font-size: 13px; }
+.resolved-row:last-child { border-bottom: none; }
 
 table { width: 100%; border-collapse: collapse; font-size: 14px; }
 th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--hairline-light); }
