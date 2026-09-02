@@ -235,3 +235,68 @@ def last_modified_distribution(
         key = lm[:slice_len]
         counts[key] = counts.get(key, 0) + 1
     return dict(sorted(counts.items()))
+
+
+def _recent_successful_run_ids(db: sqlite3.Connection, limit: int) -> list[int]:
+    rows = db.execute(
+        "SELECT scan_run_id FROM scan_runs WHERE status = 'success' ORDER BY scan_run_id DESC LIMIT ?",
+        (limit,),
+    ).fetchall()
+    return list(reversed([r["scan_run_id"] for r in rows]))  # oldest -> newest
+
+
+def open_defect_count_over_time(db: sqlite3.Connection, limit: int = 20) -> dict[str, int]:
+    """各scan_run時点で「まだ解消されていなかった」defect件数の推移。
+
+    first_seen_run_idごとの新規検出数(単調増加)とは異なり、resolved_run_idを
+    考慮した「その時点で実際に残っていた件数」を返す — 品質推移として直接的に
+    意味のある指標。
+    """
+    counts: dict[str, int] = {}
+    for run_id in _recent_successful_run_ids(db, limit):
+        row = db.execute(
+            """
+            SELECT COUNT(*) AS c FROM defect_records
+            WHERE first_seen_run_id <= ?
+              AND (resolved_run_id IS NULL OR resolved_run_id > ?)
+            """,
+            (run_id, run_id),
+        ).fetchone()
+        counts[str(run_id)] = row["c"]
+    return counts
+
+
+def asset_count_over_time(db: sqlite3.Connection, limit: int = 20) -> dict[str, int]:
+    """scan_runごとのasset_records件数の推移(スキャン対象の増減)。"""
+    run_ids = _recent_successful_run_ids(db, limit)
+    if not run_ids:
+        return {}
+    placeholders = ",".join("?" for _ in run_ids)
+    rows = db.execute(
+        f"""
+        SELECT scan_run_id, COUNT(*) AS c FROM asset_records
+        WHERE scan_run_id IN ({placeholders})
+        GROUP BY scan_run_id
+        """,
+        run_ids,
+    ).fetchall()
+    counts = {str(r["scan_run_id"]): r["c"] for r in rows}
+    return {str(run_id): counts.get(str(run_id), 0) for run_id in run_ids}
+
+
+def total_size_over_time(db: sqlite3.Connection, limit: int = 20) -> dict[str, int]:
+    """scan_runごとの合計size_bytesの推移(ディスク容量の増減トレンド)。"""
+    run_ids = _recent_successful_run_ids(db, limit)
+    if not run_ids:
+        return {}
+    placeholders = ",".join("?" for _ in run_ids)
+    rows = db.execute(
+        f"""
+        SELECT scan_run_id, COALESCE(SUM(size_bytes), 0) AS total FROM asset_records
+        WHERE scan_run_id IN ({placeholders})
+        GROUP BY scan_run_id
+        """,
+        run_ids,
+    ).fetchall()
+    totals = {str(r["scan_run_id"]): r["total"] for r in rows}
+    return {str(run_id): totals.get(str(run_id), 0) for run_id in run_ids}
