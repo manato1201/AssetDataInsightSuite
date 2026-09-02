@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import os
 import secrets
+import threading
 from io import BytesIO
 from pathlib import Path
 
@@ -23,6 +24,7 @@ from flask import (
     Response,
     abort,
     flash,
+    jsonify,
     redirect,
     render_template,
     request,
@@ -39,6 +41,7 @@ from ingest.run_scan import run_scan
 from output import excel_adapter, ndjson_export, static_html_adapter
 from output.report_manifest import build_manifest
 from rules.run_checks import run_checks
+from webapp.jobs import JobStore
 
 DEFAULT_DB_PATH = os.environ.get("INSIGHT_DB_PATH", "insight.db")
 
@@ -48,6 +51,7 @@ def create_app(db_path: str = DEFAULT_DB_PATH) -> Flask:
     app.config["DB_PATH"] = db_path
     app.secret_key = secrets.token_hex(32)  # flash-message signing only, no login/auth
     app.jinja_env.globals["zip"] = zip
+    jobs = JobStore()
 
     def _fetch_run(conn, scan_run_id: int):
         row = conn.execute(
@@ -89,30 +93,28 @@ def create_app(db_path: str = DEFAULT_DB_PATH) -> Flask:
             return redirect(url_for("dashboard"))
 
         producers = sorted(ADAPTER_REGISTRY) if producer == "all" else [producer]
-        scan_run_ids: list[int] = []
-        try:
-            for producer_id in producers:
-                scan_run_id = run_scan(app.config["DB_PATH"], producer_id, target, since)
-                scan_run_ids.append(scan_run_id)
-                if run_checks_after:
-                    run_checks(app.config["DB_PATH"], target, scan_run_id)
-        except Exception as exc:
-            flash(f"スキャン中にエラーが発生しました: {exc}", "error")
-            return redirect(url_for("dashboard"))
-
-        if len(scan_run_ids) == 1:
-            flash("スキャンが完了しました", "success")
-            return redirect(url_for("run_detail", scan_run_id=scan_run_ids[0]))
-
-        # producer="all" ran multiple independent scan_runs — no single run_detail
-        # page represents all of them, so send the user to the history list instead
-        # of silently showing only the last producer's report.
-        flash(
-            f"{len(scan_run_ids)}件のスキャンが完了しました(producer: {', '.join(producers)})。"
-            "各レポートはスキャン履歴から確認できます。",
-            "success",
+        job = jobs.create(producers, target, since, run_checks_after)
+        thread = threading.Thread(
+            target=jobs.run,
+            args=(job, run_scan, run_checks, app.config["DB_PATH"]),
+            daemon=True,
         )
-        return redirect(url_for("dashboard"))
+        thread.start()
+        return redirect(url_for("job_status_page", job_id=job.job_id))
+
+    @app.route("/jobs/<job_id>")
+    def job_status_page(job_id: str):
+        job = jobs.get(job_id)
+        if job is None:
+            abort(404)
+        return render_template("job_status.html", job=job)
+
+    @app.route("/jobs/<job_id>/status.json")
+    def job_status_json(job_id: str):
+        job = jobs.get(job_id)
+        if job is None:
+            abort(404)
+        return jsonify(job.to_dict())
 
     @app.route("/runs/<int:scan_run_id>")
     def run_detail(scan_run_id: int):
