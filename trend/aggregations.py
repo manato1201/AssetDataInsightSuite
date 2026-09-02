@@ -169,6 +169,57 @@ def extension_breakdown(db: sqlite3.Connection, scan_run_id: int) -> dict[str, i
     return {(row["extension"] or "(none)"): row["c"] for row in rows}
 
 
+def diff_against_previous(db: sqlite3.Connection, scan_run_id: int) -> dict:
+    """新規/変更/削除アセットを直前(同一producer)のscan_runと比較して返す。
+
+    比較対象がない(初回scan)場合は previous_scan_run_id=None かつ全カウント0。
+    """
+    run_row = db.execute(
+        "SELECT source_producer FROM scan_runs WHERE scan_run_id = ?", (scan_run_id,)
+    ).fetchone()
+    empty = {
+        "previous_scan_run_id": None,
+        "added_ids": [],
+        "changed_ids": [],
+        "removed_ids": [],
+    }
+    if run_row is None:
+        return empty
+
+    prev_row = db.execute(
+        """
+        SELECT scan_run_id FROM scan_runs
+        WHERE source_producer = ? AND scan_run_id < ? AND status = 'success'
+        ORDER BY scan_run_id DESC LIMIT 1
+        """,
+        (run_row["source_producer"], scan_run_id),
+    ).fetchone()
+    if prev_row is None:
+        return empty
+    previous_scan_run_id = prev_row["scan_run_id"]
+
+    def _snapshot(run_id: int) -> dict[str, tuple]:
+        rows = db.execute(
+            "SELECT asset_id, size_bytes, last_modified FROM asset_records WHERE scan_run_id = ?",
+            (run_id,),
+        ).fetchall()
+        return {r["asset_id"]: (r["size_bytes"], r["last_modified"]) for r in rows}
+
+    current = _snapshot(scan_run_id)
+    previous = _snapshot(previous_scan_run_id)
+
+    added_ids = sorted(set(current) - set(previous))
+    removed_ids = sorted(set(previous) - set(current))
+    changed_ids = sorted(a for a in (set(current) & set(previous)) if current[a] != previous[a])
+
+    return {
+        "previous_scan_run_id": previous_scan_run_id,
+        "added_ids": added_ids,
+        "changed_ids": changed_ids,
+        "removed_ids": removed_ids,
+    }
+
+
 def last_modified_distribution(
     db: sqlite3.Connection, scan_run_id: int, bucket: str = "month"
 ) -> dict[str, int]:

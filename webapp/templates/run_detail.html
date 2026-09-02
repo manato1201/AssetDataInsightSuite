@@ -16,7 +16,30 @@
 </section>
 
 {% for section in manifest['sections'] %}
-  {% if section['type'] == 'bar_chart' %}
+  {% if section['type'] == 'diff_summary' %}
+  <section class="card">
+    <h2>{{ section['title'] }}</h2>
+    {% set d = section['data'] %}
+    {% if d['previous_scan_run_id'] is none %}
+      <p class="meta">前回scanがないため比較できません(初回scan)。</p>
+    {% else %}
+      <div class="diff-row">
+        <div class="stat-tile added"><span class="stat-value">{{ d['added_count'] }}</span><span class="stat-label">新規</span></div>
+        <div class="stat-tile changed"><span class="stat-value">{{ d['changed_count'] }}</span><span class="stat-label">変更</span></div>
+        <div class="stat-tile removed"><span class="stat-value">{{ d['removed_count'] }}</span><span class="stat-label">削除</span></div>
+      </div>
+      <p class="meta">vs <a href="{{ url_for('run_detail', scan_run_id=d['previous_scan_run_id']) }}">scan_run #{{ d['previous_scan_run_id'] }}</a></p>
+      {% for kind, label in [('added_ids', '新規アセット'), ('changed_ids', '変更されたアセット'), ('removed_ids', '削除されたアセット')] %}
+        {% if d[kind] %}
+        <details class="id-list">
+          <summary>{{ label }}(表示{{ d[kind] | length }}件)</summary>
+          <ul>{% for asset_id in d[kind] %}<li>{{ asset_id }}</li>{% endfor %}</ul>
+        </details>
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+  </section>
+  {% elif section['type'] == 'bar_chart' %}
   <section class="card">
     <h2>{{ section['title'] }}</h2>
     {% set max_value = section['data']['values'] | max if section['data']['values'] else 1 %}

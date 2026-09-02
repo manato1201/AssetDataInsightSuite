@@ -20,6 +20,11 @@ MANIFEST_VERSION = "1.0"
 
 DEFAULT_TEXTURE_BUCKETS = [256, 512, 1024, 2048, 4096]
 
+# Cap id lists embedded in the manifest so a full-repository rescan (where
+# "added" could be every asset) doesn't blow up report_manifest.json; the
+# counts themselves are always exact regardless of this cap.
+DIFF_ID_PREVIEW_LIMIT = 50
+
 
 class ReportManifestBuilder:
     def __init__(self, scan_run_id: int, manifest_version: str = MANIFEST_VERSION):
@@ -45,6 +50,20 @@ class ReportManifestBuilder:
 
 def build_manifest(conn: sqlite3.Connection, scan_run_id: int) -> ReportManifestBuilder:
     builder = ReportManifestBuilder(scan_run_id)
+
+    diff = aggregations.diff_against_previous(conn, scan_run_id)
+    builder.add_section(
+        "scan_diff", "diff_summary", "前回scanとの差分",
+        {
+            "previous_scan_run_id": diff["previous_scan_run_id"],
+            "added_count": len(diff["added_ids"]),
+            "changed_count": len(diff["changed_ids"]),
+            "removed_count": len(diff["removed_ids"]),
+            "added_ids": diff["added_ids"][:DIFF_ID_PREVIEW_LIMIT],
+            "changed_ids": diff["changed_ids"][:DIFF_ID_PREVIEW_LIMIT],
+            "removed_ids": diff["removed_ids"][:DIFF_ID_PREVIEW_LIMIT],
+        },
+    )
 
     hist = aggregations.texture_resolution_histogram(conn, scan_run_id, DEFAULT_TEXTURE_BUCKETS)
     builder.add_section(
