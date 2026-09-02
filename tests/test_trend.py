@@ -147,3 +147,41 @@ def test_diff_against_previous_detects_added_changed_removed(db_path):
     assert diff["added_ids"] == ["d.png"]
     assert diff["changed_ids"] == ["b.png"]
     assert diff["removed_ids"] == ["c.png"]
+
+
+def test_asset_count_and_total_size_over_time(db_path):
+    run1 = _seed_texture_records(db_path, [(1000, 256), (2000, 512)])
+    run2 = _seed_texture_records(db_path, [(1000, 256), (2000, 512), (3000, 1024)])
+
+    with db_module.open_db(db_path) as conn:
+        asset_counts = aggregations.asset_count_over_time(conn, limit=10)
+        total_sizes = aggregations.total_size_over_time(conn, limit=10)
+
+    assert asset_counts[str(run1)] == 2
+    assert asset_counts[str(run2)] == 3
+    assert total_sizes[str(run1)] == 3000
+    assert total_sizes[str(run2)] == 6000
+
+
+def test_open_defect_count_over_time_reflects_resolution(db_path, tmp_path):
+    from ingest.run_scan import run_scan
+    from rules.run_checks import run_checks
+
+    project = tmp_path / "project"
+    (project / "Assets" / "Textures").mkdir(parents=True)
+    bad = project / "Assets" / "Textures" / "bad_name.png"
+    bad.write_bytes(b"x")
+
+    run1 = run_scan(db_path, "fs_scan", str(project), since=None)
+    run_checks(db_path, str(project), run1)
+
+    bad.unlink()
+    (project / "Assets" / "Textures" / "T_bad_name.png").write_bytes(b"x")
+    run2 = run_scan(db_path, "fs_scan", str(project), since=None)
+    run_checks(db_path, str(project), run2)
+
+    with db_module.open_db(db_path) as conn:
+        series = aggregations.open_defect_count_over_time(conn, limit=10)
+
+    assert series[str(run1)] >= 1  # naming_convention was open at run1
+    assert series[str(run2)] < series[str(run1)]  # resolved by run2

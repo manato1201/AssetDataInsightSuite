@@ -123,6 +123,18 @@ def test_trend_page_loads_without_data(db_path):
     assert resp.status_code == 200
 
 
+def test_trend_page_shows_time_series_charts_after_scans(db_path, fs_scan_sample_dir):
+    client = create_app(db_path).test_client()
+    _trigger_scan_and_wait(
+        client, producer="fs_scan", target=str(fs_scan_sample_dir), run_checks="on"
+    )
+    resp = client.get("/trend")
+    assert resp.status_code == 200
+    assert "オープンなdefect数の推移".encode() in resp.data
+    assert "アセット数の推移".encode() in resp.data
+    assert "合計サイズ(MB)の推移".encode() in resp.data
+
+
 def test_export_excel_and_ndjson_download(db_path, fs_scan_sample_dir):
     client = create_app(db_path).test_client()
     data = _trigger_scan_and_wait(

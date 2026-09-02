@@ -48,6 +48,7 @@ from rules.definition_editor import (
 )
 from rules.engine import DEFINITIONS_DIR, load_rule_definitions
 from rules.run_checks import run_checks
+from trend import aggregations
 from webapp.jobs import JobStore
 
 DEFAULT_DB_PATH = os.environ.get("INSIGHT_DB_PATH", "insight.db")
@@ -191,7 +192,10 @@ def create_app(
     @app.route("/trend")
     def trend_view():
         with db_module.open_db(app.config["DB_PATH"]) as conn:
-            rows = conn.execute(
+            open_defects = aggregations.open_defect_count_over_time(conn, limit=30)
+            asset_counts = aggregations.asset_count_over_time(conn, limit=30)
+            total_sizes = aggregations.total_size_over_time(conn, limit=30)
+            new_defect_rows = conn.execute(
                 """
                 SELECT first_seen_run_id AS scan_run_id, COUNT(*) AS c
                 FROM defect_records
@@ -199,9 +203,22 @@ def create_app(
                 ORDER BY first_seen_run_id
                 """
             ).fetchall()
-        labels = [str(r["scan_run_id"]) for r in rows]
-        values = [r["c"] for r in rows]
-        return render_template("trend.html", labels=labels, values=values)
+
+        charts = [
+            {"title": "オープンなdefect数の推移", "data": open_defects},
+            {"title": "アセット数の推移", "data": asset_counts},
+            {
+                "title": "合計サイズ(MB)の推移",
+                "data": {
+                    k: round(v / (1024 * 1024), 2) for k, v in total_sizes.items()
+                },
+            },
+            {
+                "title": "新規検出defect数(run別)",
+                "data": {str(r["scan_run_id"]): r["c"] for r in new_defect_rows},
+            },
+        ]
+        return render_template("trend.html", charts=charts)
 
     @app.route("/rules")
     def rules_list():
