@@ -336,13 +336,17 @@ footer { background: var(--canvas-dark); color: var(--on-dark-mute); padding: 32
       <tr><td><code>rules/lod_missing.py</code></td><td>lod_group_configured の pass/fail 判定</td><td>&mdash;</td></tr>
       <tr><td><code>rules/unused_material.py</code></td><td>シーン/プレハブ参照グラフとMaterialのクロスチェック</td><td>&mdash;</td></tr>
       <tr><td><code>rules/orphan_and_individual_fix.py</code></td><td>個別修正overrides + 汎用孤立アセット検知</td><td>&mdash;</td></tr>
-      <tr><td><code>trend/aggregations.py</code></td><td>純SQL集計関数群</td><td>関数を1つ追加するだけ</td></tr>
+      <tr><td><code>rules/run_checks.py</code></td><td>ルール実行 + defect解決追跡(resolved_run_id)</td><td>&mdash;</td></tr>
+      <tr><td><code>rules/definition_editor.py</code></td><td>rules/definitions/*.yaml の読み書き(GUI用、検証込み)</td><td>&mdash;</td></tr>
+      <tr><td><code>trend/aggregations.py</code></td><td>純SQL集計関数群 + scan間差分 + 時系列推移</td><td>関数を1つ追加するだけ</td></tr>
       <tr><td><code>output/report_manifest.py</code></td><td>ReportManifestBuilder(唯一のmanifestプロデューサー)</td><td>add_section() を1行追加</td></tr>
-      <tr><td><code>output/cli_adapter.py</code></td><td>CIゲートCLI。severityからexit code算出</td><td>&mdash;</td></tr>
+      <tr><td><code>output/cli_adapter.py</code></td><td>CIゲートCLI。severityからexit code算出、diff/バーチャート表示</td><td>&mdash;</td></tr>
       <tr><td><code>output/excel_adapter.py</code></td><td>manifestをそのままシート/チャートへ転記</td><td>&mdash;</td></tr>
       <tr><td><code>output/ndjson_export.py</code></td><td>Elasticsearch _bulk互換NDJSON</td><td>&mdash;</td></tr>
       <tr><td><code>output/static_html_adapter.py</code></td><td>オフライン静的HTML(Revolutトークン)</td><td>&mdash;</td></tr>
+      <tr><td><code>output/webhook_notify.py</code></td><td>Slack互換Webhook通知</td><td>&mdash;</td></tr>
       <tr><td><code>webapp/app.py</code></td><td>Flask操作GUI</td><td>ルート追加+テンプレート追加</td></tr>
+      <tr><td><code>webapp/jobs.py</code></td><td>スキャンの非同期実行(JobStore)</td><td>&mdash;</td></tr>
     </tbody>
   </table>
 </section>
