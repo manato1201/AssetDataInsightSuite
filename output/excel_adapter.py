@@ -18,18 +18,28 @@ from core import db as db_module
 from output.report_manifest import ReportManifestBuilder, build_manifest
 
 
-def _safe_sheet_title(title: str) -> str:
-    return re.sub(r"[\[\]:*?/\\]", "_", title)[:31]
+def _safe_sheet_title(title: str, used_titles: set[str]) -> str:
+    """Excel sheet titles are capped at 31 chars and must be unique per workbook."""
+    base = re.sub(r"[\[\]:*?/\\]", "_", title)[:31]
+    candidate = base
+    suffix_n = 2
+    while candidate in used_titles:
+        suffix = f"_{suffix_n}"
+        candidate = base[: 31 - len(suffix)] + suffix
+        suffix_n += 1
+    used_titles.add(candidate)
+    return candidate
 
 
 def write_workbook(builder: ReportManifestBuilder, out_path: str) -> None:
     manifest = builder.build()
     wb = Workbook()
     wb.remove(wb.active)
+    used_titles: set[str] = set()
 
     for section in manifest["sections"]:
         ws = wb.create_sheet(
-            _safe_sheet_title(section["title"] or section["section_id"])
+            _safe_sheet_title(section["title"] or section["section_id"], used_titles)
         )
         data = section["data"]
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from core import db as db_module
 from ingest.adapters import fs_scan_adapter  # noqa: F401
 from webapp.app import create_app
 
@@ -21,6 +22,28 @@ def test_trigger_scan_redirects_to_run_detail(db_path, fs_scan_sample_dir):
     assert resp.status_code == 200
     assert "scan_run #1".encode() in resp.data
     assert "不具合一覧".encode() in resp.data
+
+
+def test_trigger_scan_with_all_producers_redirects_to_dashboard_not_one_run(
+    db_path, fs_scan_sample_dir
+):
+    """producer='all' triggers multiple independent scan_runs; redirecting to a
+    single run_detail page would silently hide every other producer's report."""
+    client = create_app(db_path).test_client()
+    resp = client.post(
+        "/scan",
+        data={"producer": "all", "target": str(fs_scan_sample_dir), "run_checks": "on"},
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+    assert "スキャンを実行".encode() in resp.data  # back on the dashboard
+    assert "件のスキャンが完了しました".encode() in resp.data
+
+    with db_module.open_db(db_path) as conn:
+        producers = {
+            r["source_producer"] for r in conn.execute("SELECT source_producer FROM scan_runs")
+        }
+    assert len(producers) >= 2
 
 
 def test_trigger_scan_with_invalid_target_flashes_error(db_path):

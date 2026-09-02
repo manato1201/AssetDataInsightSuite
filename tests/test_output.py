@@ -11,7 +11,7 @@ from output import static_html_adapter
 from output.cli_adapter import evaluate_exit_code
 from output.excel_adapter import write_workbook
 from output.ndjson_export import export_ndjson
-from output.report_manifest import build_manifest
+from output.report_manifest import ReportManifestBuilder, build_manifest
 from rules.engine import build_context, run_all_rules
 
 
@@ -61,6 +61,24 @@ def test_cli_and_excel_share_the_same_manifest_values(
         zip(ext_section["data"]["labels"], ext_section["data"]["values"])
     )
     assert excel_values == manifest_values
+
+
+def test_excel_sheet_titles_are_deduplicated_when_they_collide(tmp_path):
+    builder = ReportManifestBuilder(scan_run_id=1)
+    long_title = "x" * 40  # truncates identically to 31 chars for both sections
+    builder.add_section(
+        "section_a", "bar_chart", long_title, {"labels": ["a"], "values": [1]}
+    )
+    builder.add_section(
+        "section_b", "bar_chart", long_title, {"labels": ["b"], "values": [2]}
+    )
+
+    xlsx_path = tmp_path / "report.xlsx"
+    write_workbook(builder, str(xlsx_path))
+
+    wb = load_workbook(xlsx_path)
+    assert len(wb.sheetnames) == 2
+    assert len(set(wb.sheetnames)) == 2
 
 
 def test_ndjson_export_is_valid_bulk_format(db_path, fs_scan_sample_dir):

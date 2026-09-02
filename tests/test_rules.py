@@ -40,6 +40,13 @@ def test_naming_convention_flags_only_bad_names(db_path, fs_scan_sample_dir):
     assert "Assets/Textures/T_rock_d.png" not in naming_defects
 
 
+def test_coding_convention_flags_only_bad_script_names(db_path, fs_scan_sample_dir):
+    _, defects = _run_pipeline(db_path, fs_scan_sample_dir)
+    coding_defects = {d.asset_id for d in defects if d.rule_id == "coding_convention"}
+    assert "Assets/Scripts/badly_named_script.cs" in coding_defects
+    assert "Assets/Scripts/PlayerController.cs" not in coding_defects
+
+
 def test_unused_material_flags_only_unreferenced_material(db_path, fs_scan_sample_dir):
     _, defects = _run_pipeline(db_path, fs_scan_sample_dir)
     unused = {d.asset_id for d in defects if d.rule_id == "unused_material"}

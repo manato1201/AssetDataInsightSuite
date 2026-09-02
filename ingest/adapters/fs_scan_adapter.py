@@ -7,7 +7,6 @@ producer yet.
 
 from __future__ import annotations
 
-import os
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -18,8 +17,9 @@ _TEXTURE_EXTS = {".png", ".jpg", ".jpeg", ".tga", ".exr", ".psd", ".tif", ".tiff
 _MODEL_EXTS = {".fbx", ".obj", ".blend", ".gltf", ".glb"}
 _MATERIAL_EXTS = {".mat"}
 _AUDIO_EXTS = {".wav", ".ogg", ".bank", ".mp3"}
+_SCRIPT_EXTS = {".cs"}
 
-_SKIP_SUFFIXES = {".meta", ".lqa.json"}
+_SKIP_SUFFIXES = (".meta", ".lqa.json")
 
 
 def _classify(extension: str) -> str:
@@ -32,6 +32,8 @@ def _classify(extension: str) -> str:
         return "material"
     if ext in _AUDIO_EXTS:
         return "audio_bank"
+    if ext in _SCRIPT_EXTS:
+        return "script"
     return "unknown"
 
 
@@ -51,7 +53,7 @@ class FsScanAdapter:
         for path in sorted(root.rglob("*")):
             if not path.is_file():
                 continue
-            if path.name.endswith(tuple(_SKIP_SUFFIXES)):
+            if path.name.endswith(_SKIP_SUFFIXES):
                 continue
 
             stat = path.stat()

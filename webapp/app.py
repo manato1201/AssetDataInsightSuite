@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import secrets
 from io import BytesIO
 from pathlib import Path
 
@@ -45,9 +46,7 @@ DEFAULT_DB_PATH = os.environ.get("INSIGHT_DB_PATH", "insight.db")
 def create_app(db_path: str = DEFAULT_DB_PATH) -> Flask:
     app = Flask(__name__)
     app.config["DB_PATH"] = db_path
-    app.secret_key = (
-        "asset-data-insight-suite-local-gui"  # local single-user tool, no auth
-    )
+    app.secret_key = secrets.token_hex(32)  # flash-message signing only, no login/auth
     app.jinja_env.globals["zip"] = zip
 
     def _fetch_run(conn, scan_run_id: int):
@@ -90,15 +89,14 @@ def create_app(db_path: str = DEFAULT_DB_PATH) -> Flask:
             return redirect(url_for("dashboard"))
 
         producers = sorted(ADAPTER_REGISTRY) if producer == "all" else [producer]
-        last_scan_run_id = None
+        scan_run_ids: list[int] = []
         try:
             for producer_id in producers:
-                last_scan_run_id = run_scan(
-                    app.config["DB_PATH"], producer_id, target, since
-                )
+                scan_run_id = run_scan(app.config["DB_PATH"], producer_id, target, since)
+                scan_run_ids.append(scan_run_id)
                 if run_checks_after:
                     with db_module.open_db(app.config["DB_PATH"]) as conn:
-                        context = build_context(conn, last_scan_run_id, target)
+                        context = build_context(conn, scan_run_id, target)
                         for defect in run_all_rules(context):
                             db_module.upsert_defect_record(
                                 conn,
@@ -107,14 +105,25 @@ def create_app(db_path: str = DEFAULT_DB_PATH) -> Flask:
                                 defect.severity,
                                 defect.message,
                                 defect.suggested_fix,
-                                last_scan_run_id,
+                                scan_run_id,
                             )
         except Exception as exc:
             flash(f"スキャン中にエラーが発生しました: {exc}", "error")
             return redirect(url_for("dashboard"))
 
-        flash("スキャンが完了しました", "success")
-        return redirect(url_for("run_detail", scan_run_id=last_scan_run_id))
+        if len(scan_run_ids) == 1:
+            flash("スキャンが完了しました", "success")
+            return redirect(url_for("run_detail", scan_run_id=scan_run_ids[0]))
+
+        # producer="all" ran multiple independent scan_runs — no single run_detail
+        # page represents all of them, so send the user to the history list instead
+        # of silently showing only the last producer's report.
+        flash(
+            f"{len(scan_run_ids)}件のスキャンが完了しました(producer: {', '.join(producers)})。"
+            "各レポートはスキャン履歴から確認できます。",
+            "success",
+        )
+        return redirect(url_for("dashboard"))
 
     @app.route("/runs/<int:scan_run_id>")
     def run_detail(scan_run_id: int):

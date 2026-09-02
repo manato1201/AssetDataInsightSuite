@@ -9,12 +9,18 @@ pair only has its `last_seen_run_id` bumped, a new one gets
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 
 from core import db as db_module
 from rules.engine import build_context, run_all_rules
 
 
 def run_checks(db_path: str, target_path: str, scan_run_id: int | None) -> int:
+    if not Path(target_path).is_dir():
+        raise SystemExit(
+            f"target path does not exist or is not a directory: {target_path}"
+        )
+
     with db_module.open_db(db_path) as conn:
         if scan_run_id is None:
             scan_run_id = db_module.latest_scan_run_id(conn)
