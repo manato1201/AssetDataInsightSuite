@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Rules - AssetDataInsightSuite{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>ルール定義一覧</h1>
+  <p class="meta">rules/definitions/*.yaml を直接編集する。保存時にYAML構文とrule_id/moduleキーの有無を検証する。</p>
+  <table>
+    <thead>
+      <tr><th>rule_id</th><th>module</th><th>severity</th><th>applies_to</th><th></th></tr>
+    </thead>
+    <tbody>
+    {% for d in definitions %}
+      <tr>
+        <td>{{ d['rule_id'] }}</td>
+        <td>{{ d['module'] }}</td>
+        <td><span class="severity-pill severity-{{ d.get('severity', 'info') }}">{{ d.get('severity', '-') }}</span></td>
+        <td>{{ d.get('applies_to', []) | join(', ') }}</td>
+        <td><a class="btn btn-soft" href="{{ url_for('rule_edit', filename=d['filename']) }}">編集</a></td>
+      </tr>
+    {% else %}
+      <tr><td colspan="5">ルール定義がありません</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

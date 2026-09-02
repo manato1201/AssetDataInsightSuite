@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import shutil
 import time
 
 from core import db as db_module
 from ingest.adapters import fs_scan_adapter  # noqa: F401
+from rules.engine import DEFINITIONS_DIR
 from webapp.app import create_app
 
 
@@ -141,3 +143,56 @@ def test_run_detail_404_for_unknown_scan_run(db_path):
     client = create_app(db_path).test_client()
     resp = client.get("/runs/999")
     assert resp.status_code == 404
+
+
+def _client_with_scratch_definitions(db_path, tmp_path):
+    """create_app(definitions_dir=...) points the rules editor at a throwaway
+    copy so these tests never write to the real, checked-in rule YAML files."""
+    definitions_dir = tmp_path / "definitions"
+    shutil.copytree(DEFINITIONS_DIR, definitions_dir)
+    return create_app(db_path, definitions_dir=definitions_dir).test_client(), definitions_dir
+
+
+def test_rules_list_page_shows_all_definitions(db_path, tmp_path):
+    client, _ = _client_with_scratch_definitions(db_path, tmp_path)
+    resp = client.get("/rules")
+    assert resp.status_code == 200
+    assert b"naming_convention" in resp.data
+    assert b"coding_convention" in resp.data
+
+
+def test_rule_edit_get_shows_raw_yaml_source(db_path, tmp_path):
+    client, _ = _client_with_scratch_definitions(db_path, tmp_path)
+    resp = client.get("/rules/naming_convention.yaml/edit")
+    assert resp.status_code == 200
+    assert b"rule_id: naming_convention" in resp.data
+
+
+def test_rule_edit_get_404_for_unknown_file(db_path, tmp_path):
+    client, _ = _client_with_scratch_definitions(db_path, tmp_path)
+    resp = client.get("/rules/does_not_exist.yaml/edit")
+    assert resp.status_code == 404
+
+
+def test_rule_edit_post_saves_valid_yaml(db_path, tmp_path):
+    client, definitions_dir = _client_with_scratch_definitions(db_path, tmp_path)
+    resp = client.post(
+        "/rules/naming_convention.yaml/edit",
+        data={"source": "rule_id: naming_convention\nmodule: rules.naming_convention\nseverity: fail\n"},
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+    saved = (definitions_dir / "naming_convention.yaml").read_text(encoding="utf-8")
+    assert "severity: fail" in saved
+
+
+def test_rule_edit_post_rejects_invalid_yaml_and_keeps_file_unchanged(db_path, tmp_path):
+    client, definitions_dir = _client_with_scratch_definitions(db_path, tmp_path)
+    original = (definitions_dir / "naming_convention.yaml").read_text(encoding="utf-8")
+
+    resp = client.post(
+        "/rules/naming_convention.yaml/edit",
+        data={"source": "not valid yaml: [\n"},
+    )
+    assert resp.status_code == 200  # re-renders the editor with the error, no redirect
+    assert (definitions_dir / "naming_convention.yaml").read_text(encoding="utf-8") == original

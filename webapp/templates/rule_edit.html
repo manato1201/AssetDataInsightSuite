@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}{{ filename }} - Rules - AssetDataInsightSuite{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>{{ filename }}</h1>
+  <p class="meta">保存時にYAML構文と rule_id / module キーの有無を検証する(不正なYAMLは保存されない)。</p>
+  <form method="post">
+    <textarea name="source" class="yaml-editor" spellcheck="false">{{ source }}</textarea>
+    <div class="action-row">
+      <button type="submit" class="btn btn-primary">保存</button>
+      <a class="btn btn-outline" href="{{ url_for('rules_list') }}">キャンセル</a>
+    </div>
+  </form>
+</section>
+{% endblock %}
