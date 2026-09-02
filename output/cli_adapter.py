@@ -12,6 +12,7 @@ import sys
 
 from core import db as db_module
 from output.report_manifest import build_manifest
+from trend.charts import render_bar_chart
 
 _SEVERITY_RANK = {"info": 0, "warn": 1, "fail": 2}
 
@@ -43,6 +44,15 @@ def run(
             builder = build_manifest(conn, scan_run_id)
             if manifest_path:
                 builder.write(manifest_path)
+
+            for section in builder.build()["sections"]:
+                if section["type"] != "bar_chart":
+                    continue
+                chart_data = dict(
+                    zip(section["data"]["labels"], section["data"]["values"])
+                )
+                print(render_bar_chart(chart_data, section["title"]))
+                print()
 
             for row in defect_rows:
                 print(

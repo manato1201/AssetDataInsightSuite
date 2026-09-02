@@ -28,9 +28,20 @@ jobs:
       - name: Run defect-detection rules
         run: python -m rules.run_checks --target . --db insight.db
 
+      # continue-on-error here is deliberate: cli_adapter's exit code (0/1/2)
+      # reflects DEFECT SEVERITY, not pipeline health. If this step were allowed
+      # to fail the job directly, routine warn-level defects would be
+      # indistinguishable from an actual broken pipeline below, spamming
+      # insight-scan-failed issues (or keeping one permanently open) for
+      # ordinary quality findings instead of real infrastructure problems.
       - name: CLI gate + manifest
         id: cli_gate
-        run: python -m output.cli_adapter --db insight.db --fail-on warn --manifest-out report_manifest.json
+        continue-on-error: true
+        run: |
+          set +e
+          python -m output.cli_adapter --db insight.db --fail-on warn --manifest-out report_manifest.json
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+          set -e
 
       - name: Generate offline static report
         if: always()
@@ -44,6 +55,9 @@ jobs:
             report_manifest.json
             reports/
 
+      # failure() here only reflects the checkout/setup/ingest/rules steps above
+      # (continue-on-error steps are excluded from failure()/success() checks),
+      # so this fires on real pipeline breakage, not on defects being found.
       - name: Create failure issue (if not already open)
         if: failure()
         env:
@@ -69,3 +83,9 @@ jobs:
             gh issue close "$number" --repo "$GITHUB_REPOSITORY" \
               --comment "insight-scan succeeded again: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           done
+
+      # Runs last, after the issue-tracking steps above have already judged
+      # pipeline health, so it can safely fail the job for branch-protection /
+      # status-check visibility without ever triggering the infra-failure issue.
+      - name: Enforce quality gate
+        run: exit ${{ steps.cli_gate.outputs.exit_code }}

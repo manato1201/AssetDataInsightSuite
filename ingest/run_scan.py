@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timezone
+from pathlib import Path
 
 from core import db as db_module
 
@@ -26,6 +27,10 @@ def run_scan(
         raise SystemExit(
             f"unknown producer: {producer_id} (known: {sorted(ADAPTER_REGISTRY)})"
         )
+    if not Path(target_path).is_dir():
+        raise SystemExit(
+            f"target path does not exist or is not a directory: {target_path}"
+        )
 
     started_at = datetime.now(timezone.utc).isoformat()
     with db_module.open_db(db_path) as conn:
@@ -36,9 +41,14 @@ def run_scan(
             records = adapter.scan(target_path, since)
             db_module.insert_asset_records(conn, scan_run_id, records)
         except Exception:
+            # `open_db` only commits on a clean exit from the `with` block, so an
+            # exception propagating past it would roll back this UPDATE too and
+            # silently discard the "failed" status (and the scan_run row itself).
+            # Commit explicitly here so the failure is actually persisted as history.
             db_module.finish_scan_run(
                 conn, scan_run_id, datetime.now(timezone.utc).isoformat(), "failed"
             )
+            conn.commit()
             raise
         db_module.finish_scan_run(
             conn, scan_run_id, datetime.now(timezone.utc).isoformat(), "success"

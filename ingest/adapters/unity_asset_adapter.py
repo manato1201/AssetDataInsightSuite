@@ -18,6 +18,7 @@ from ingest.adapters.registry import register
 
 _TEXTURE_EXTS = {".png", ".jpg", ".jpeg", ".tga", ".exr", ".psd", ".tif", ".tiff"}
 _MODEL_EXTS = {".fbx", ".obj", ".blend", ".gltf", ".glb"}
+_SCRIPT_EXTS = {".cs"}
 
 
 def _classify(extension: str) -> str:
@@ -26,6 +27,8 @@ def _classify(extension: str) -> str:
         return "texture"
     if ext in _MODEL_EXTS:
         return "model"
+    if ext in _SCRIPT_EXTS:
+        return "script"
     return "unknown"
 
 

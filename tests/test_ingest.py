@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from core import db as db_module
 from ingest.adapters import fs_scan_adapter, lqa_adapter, unity_asset_adapter  # noqa: F401
 from ingest.adapters.registry import ADAPTER_REGISTRY
@@ -49,6 +51,15 @@ def test_fs_scan_adapter_normalizes_fixture(fs_scan_sample_dir):
     assert texture.source_producer == "fs_scan"
 
 
+def test_fs_scan_adapter_classifies_cs_files_as_script(fs_scan_sample_dir):
+    adapter = ADAPTER_REGISTRY["fs_scan"]
+    records = adapter.scan(str(fs_scan_sample_dir))
+    script = next(
+        r for r in records if r.asset_id == "Assets/Scripts/PlayerController.cs"
+    )
+    assert script.asset_type == "script"
+
+
 def test_ingestion_is_idempotent(db_path, fs_scan_sample_dir):
     run_scan(db_path, "fs_scan", str(fs_scan_sample_dir), since=None)
     run_scan(db_path, "fs_scan", str(fs_scan_sample_dir), since=None)
@@ -71,3 +82,37 @@ def test_ingestion_is_idempotent(db_path, fs_scan_sample_dir):
 
         first, second = snapshot(run_ids[0]), snapshot(run_ids[1])
         assert first == second
+
+
+def test_run_scan_rejects_missing_target_path(db_path, tmp_path):
+    missing = tmp_path / "does-not-exist"
+    with pytest.raises(SystemExit):
+        run_scan(db_path, "fs_scan", str(missing), since=None)
+
+
+def test_failed_scan_run_status_is_persisted(db_path, fs_scan_sample_dir):
+    """Regression test: a scan_run's 'failed' status must survive even though
+    the exception that caused it propagates past `open_db`'s context manager
+    (which only auto-commits on a clean exit)."""
+
+    class BoomAdapter:
+        producer_id = "boom_test_adapter"
+
+        def scan(self, target_path, since=None):
+            raise RuntimeError("boom")
+
+    ADAPTER_REGISTRY["boom_test_adapter"] = BoomAdapter()
+    try:
+        with pytest.raises(RuntimeError):
+            run_scan(db_path, "boom_test_adapter", str(fs_scan_sample_dir), since=None)
+    finally:
+        del ADAPTER_REGISTRY["boom_test_adapter"]
+
+    with db_module.open_db(db_path) as conn:
+        row = conn.execute(
+            "SELECT status FROM scan_runs WHERE source_producer = 'boom_test_adapter'"
+        ).fetchone()
+        assert row is not None, (
+            "the scan_run row itself must be persisted, not just its status"
+        )
+        assert row["status"] == "failed"

@@ -33,13 +33,14 @@
   {% elif section['type'] == 'table' %}
   <section class="card">
     <h2>{{ section['title'] }}</h2>
+    {% set severity_idx = section['data']['columns'].index('severity') if 'severity' in section['data']['columns'] else -1 %}
     <table>
       <thead><tr>{% for col in section['data']['columns'] %}<th>{{ col }}</th>{% endfor %}</tr></thead>
       <tbody>
       {% for row in section['data']['rows'] %}
         <tr>
         {% for cell in row %}
-          {% if loop.index0 == 2 %}
+          {% if loop.index0 == severity_idx %}
             <td><span class="severity-pill severity-{{ cell }}">{{ cell }}</span></td>
           {% else %}
             <td>{{ cell }}</td>
