@@ -38,7 +38,7 @@ from ingest.adapters.registry import ADAPTER_REGISTRY
 from ingest.run_scan import run_scan
 from output import excel_adapter, ndjson_export, static_html_adapter
 from output.report_manifest import build_manifest
-from rules.engine import build_context, run_all_rules
+from rules.run_checks import run_checks
 
 DEFAULT_DB_PATH = os.environ.get("INSIGHT_DB_PATH", "insight.db")
 
@@ -95,18 +95,7 @@ def create_app(db_path: str = DEFAULT_DB_PATH) -> Flask:
                 scan_run_id = run_scan(app.config["DB_PATH"], producer_id, target, since)
                 scan_run_ids.append(scan_run_id)
                 if run_checks_after:
-                    with db_module.open_db(app.config["DB_PATH"]) as conn:
-                        context = build_context(conn, scan_run_id, target)
-                        for defect in run_all_rules(context):
-                            db_module.upsert_defect_record(
-                                conn,
-                                defect.asset_id,
-                                defect.rule_id,
-                                defect.severity,
-                                defect.message,
-                                defect.suggested_fix,
-                                scan_run_id,
-                            )
+                    run_checks(app.config["DB_PATH"], target, scan_run_id)
         except Exception as exc:
             flash(f"スキャン中にエラーが発生しました: {exc}", "error")
             return redirect(url_for("dashboard"))
@@ -177,10 +166,14 @@ def create_app(db_path: str = DEFAULT_DB_PATH) -> Flask:
         severity_filter = request.args.get("severity") or None
         with db_module.open_db(app.config["DB_PATH"]) as conn:
             rows = db_module.fetch_defect_records(conn)
+            resolved_rows = db_module.fetch_recently_resolved_defects(conn, limit=20)
         if severity_filter:
             rows = [r for r in rows if r["severity"] == severity_filter]
         return render_template(
-            "defects.html", defects=rows, severity_filter=severity_filter
+            "defects.html",
+            defects=rows,
+            resolved_defects=resolved_rows,
+            severity_filter=severity_filter,
         )
 
     @app.route("/trend")

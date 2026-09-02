@@ -60,9 +60,22 @@ CREATE TABLE IF NOT EXISTS defect_records (
     suggested_fix     TEXT,
     first_seen_run_id INTEGER NOT NULL REFERENCES scan_runs(scan_run_id),
     last_seen_run_id  INTEGER NOT NULL REFERENCES scan_runs(scan_run_id),
+    resolved_run_id   INTEGER REFERENCES scan_runs(scan_run_id),
     UNIQUE(asset_id, rule_id)
 );
 """
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    """Additive, idempotent schema migrations for databases created before a
+    column existed. Runs on every connect() so existing insight.db files pick
+    up new columns without the user having to delete and rescan."""
+    columns = {row["name"] for row in conn.execute("PRAGMA table_info(defect_records)")}
+    if "resolved_run_id" not in columns:
+        conn.execute(
+            "ALTER TABLE defect_records ADD COLUMN resolved_run_id INTEGER REFERENCES scan_runs(scan_run_id)"
+        )
+        conn.commit()
 
 
 def connect(db_path: str | Path) -> sqlite3.Connection:
@@ -70,6 +83,7 @@ def connect(db_path: str | Path) -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     conn.executescript(SCHEMA_SQL)
+    _migrate(conn)
     return conn
 
 
@@ -194,10 +208,12 @@ def upsert_defect_record(
         (asset_id, rule_id),
     ).fetchone()
     if existing:
+        # Re-detecting a defect always reopens it (resolved_run_id -> NULL),
+        # covering the case where something was fixed and later regressed.
         conn.execute(
             """
             UPDATE defect_records
-            SET severity = ?, message = ?, suggested_fix = ?, last_seen_run_id = ?
+            SET severity = ?, message = ?, suggested_fix = ?, last_seen_run_id = ?, resolved_run_id = NULL
             WHERE defect_record_id = ?
             """,
             (
@@ -227,7 +243,51 @@ def upsert_defect_record(
         )
 
 
-def fetch_defect_records(conn: sqlite3.Connection) -> list[sqlite3.Row]:
+def fetch_defect_records(
+    conn: sqlite3.Connection, include_resolved: bool = False
+) -> list[sqlite3.Row]:
+    if include_resolved:
+        return conn.execute(
+            "SELECT * FROM defect_records ORDER BY severity DESC, asset_id"
+        ).fetchall()
     return conn.execute(
-        "SELECT * FROM defect_records ORDER BY severity DESC, asset_id"
+        "SELECT * FROM defect_records WHERE resolved_run_id IS NULL ORDER BY severity DESC, asset_id"
+    ).fetchall()
+
+
+def fetch_unresolved_defects_for_assets(
+    conn: sqlite3.Connection, asset_ids: list[str]
+) -> list[sqlite3.Row]:
+    """Open defects for a given set of asset_ids — used to find defects that
+    should be resolved because their asset was rescanned but the rule no
+    longer fires for it."""
+    if not asset_ids:
+        return []
+    placeholders = ",".join("?" for _ in asset_ids)
+    return conn.execute(
+        f"SELECT * FROM defect_records WHERE resolved_run_id IS NULL AND asset_id IN ({placeholders})",
+        asset_ids,
+    ).fetchall()
+
+
+def mark_defect_resolved(
+    conn: sqlite3.Connection, defect_record_id: int, resolved_run_id: int
+) -> None:
+    conn.execute(
+        "UPDATE defect_records SET resolved_run_id = ? WHERE defect_record_id = ?",
+        (resolved_run_id, defect_record_id),
+    )
+
+
+def fetch_recently_resolved_defects(
+    conn: sqlite3.Connection, limit: int = 20
+) -> list[sqlite3.Row]:
+    return conn.execute(
+        """
+        SELECT * FROM defect_records
+        WHERE resolved_run_id IS NOT NULL
+        ORDER BY resolved_run_id DESC, asset_id
+        LIMIT ?
+        """,
+        (limit,),
     ).fetchall()

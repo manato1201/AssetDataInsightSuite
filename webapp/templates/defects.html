@@ -29,4 +29,20 @@
     </tbody>
   </table>
 </section>
+
+{% if not severity_filter %}
+<section class="card">
+  <h2>最近解消したdefect</h2>
+  {% if resolved_defects %}
+    {% for d in resolved_defects %}
+      <div class="resolved-row">
+        <span>{{ d['asset_id'] }} :: {{ d['rule_id'] }}</span>
+        <span class="meta">run <a href="{{ url_for('run_detail', scan_run_id=d['resolved_run_id']) }}">#{{ d['resolved_run_id'] }}</a>で解消</span>
+      </div>
+    {% endfor %}
+  {% else %}
+    <p class="meta">まだ解消されたdefectはありません。</p>
+  {% endif %}
+</section>
+{% endif %}
 {% endblock %}
