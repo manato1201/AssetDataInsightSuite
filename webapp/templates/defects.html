@@ -3,11 +3,19 @@
 {% block content %}
 <section class="card">
   <h1>Defect一覧</h1>
+  <form method="get" class="scan-form" style="margin-bottom:16px;">
+    <label>検索(asset_id / rule_id / message)
+      <input type="text" name="q" value="{{ query }}" placeholder="例: naming_convention">
+    </label>
+    {% if severity_filter %}<input type="hidden" name="severity" value="{{ severity_filter }}">{% endif %}
+    <button type="submit" class="btn btn-soft">検索</button>
+    <a class="btn btn-outline" href="{{ url_for('defects_export_csv', severity=severity_filter, q=(query or none)) }}">CSVダウンロード</a>
+  </form>
   <div class="filter-row">
-    <a class="btn btn-pill-sm {% if not severity_filter %}active{% endif %}" href="{{ url_for('defects_view') }}">すべて</a>
-    <a class="btn btn-pill-sm {% if severity_filter == 'fail' %}active{% endif %}" href="{{ url_for('defects_view', severity='fail') }}">fail</a>
-    <a class="btn btn-pill-sm {% if severity_filter == 'warn' %}active{% endif %}" href="{{ url_for('defects_view', severity='warn') }}">warn</a>
-    <a class="btn btn-pill-sm {% if severity_filter == 'info' %}active{% endif %}" href="{{ url_for('defects_view', severity='info') }}">info</a>
+    <a class="btn btn-pill-sm {% if not severity_filter %}active{% endif %}" href="{{ url_for('defects_view', q=(query or none)) }}">すべて</a>
+    <a class="btn btn-pill-sm {% if severity_filter == 'fail' %}active{% endif %}" href="{{ url_for('defects_view', severity='fail', q=(query or none)) }}">fail</a>
+    <a class="btn btn-pill-sm {% if severity_filter == 'warn' %}active{% endif %}" href="{{ url_for('defects_view', severity='warn', q=(query or none)) }}">warn</a>
+    <a class="btn btn-pill-sm {% if severity_filter == 'info' %}active{% endif %}" href="{{ url_for('defects_view', severity='info', q=(query or none)) }}">info</a>
   </div>
   <table>
     <thead>

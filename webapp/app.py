@@ -13,6 +13,8 @@ is no authentication layer.
 from __future__ import annotations
 
 import argparse
+import csv
+import io
 import os
 import secrets
 import threading
@@ -53,6 +55,21 @@ from webapp.jobs import JobStore
 
 DEFAULT_DB_PATH = os.environ.get("INSIGHT_DB_PATH", "insight.db")
 DEFAULT_WEBHOOK_URL = os.environ.get("INSIGHT_WEBHOOK_URL") or None
+
+
+def _filter_defects(rows: list, severity_filter: str | None, query: str) -> list:
+    if severity_filter:
+        rows = [r for r in rows if r["severity"] == severity_filter]
+    if query:
+        q = query.lower()
+        rows = [
+            r
+            for r in rows
+            if q in r["asset_id"].lower()
+            or q in r["rule_id"].lower()
+            or q in (r["message"] or "").lower()
+        ]
+    return rows
 
 
 def create_app(
@@ -215,16 +232,58 @@ def create_app(
     @app.route("/defects")
     def defects_view():
         severity_filter = request.args.get("severity") or None
+        query = request.args.get("q", "").strip()
         with db_module.open_db(app.config["DB_PATH"]) as conn:
             rows = db_module.fetch_defect_records(conn)
             resolved_rows = db_module.fetch_recently_resolved_defects(conn, limit=20)
-        if severity_filter:
-            rows = [r for r in rows if r["severity"] == severity_filter]
+        rows = _filter_defects(rows, severity_filter, query)
         return render_template(
             "defects.html",
             defects=rows,
             resolved_defects=resolved_rows,
             severity_filter=severity_filter,
+            query=query,
+        )
+
+    @app.route("/defects/export.csv")
+    def defects_export_csv():
+        severity_filter = request.args.get("severity") or None
+        query = request.args.get("q", "").strip()
+        with db_module.open_db(app.config["DB_PATH"]) as conn:
+            rows = db_module.fetch_defect_records(conn)
+        rows = _filter_defects(rows, severity_filter, query)
+
+        buffer = io.StringIO()
+        writer = csv.writer(buffer)
+        writer.writerow(
+            [
+                "asset_id",
+                "rule_id",
+                "severity",
+                "message",
+                "suggested_fix",
+                "first_seen_run_id",
+                "last_seen_run_id",
+            ]
+        )
+        for r in rows:
+            writer.writerow(
+                [
+                    r["asset_id"],
+                    r["rule_id"],
+                    r["severity"],
+                    r["message"],
+                    r["suggested_fix"],
+                    r["first_seen_run_id"],
+                    r["last_seen_run_id"],
+                ]
+            )
+        # BOM so Excel on Windows detects UTF-8 (defect messages are Japanese)
+        csv_content = "﻿" + buffer.getvalue()
+        return Response(
+            csv_content,
+            mimetype="text/csv",
+            headers={"Content-Disposition": "attachment; filename=defects.csv"},
         )
 
     @app.route("/trend")
