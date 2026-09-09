@@ -225,6 +225,16 @@ sequenceDiagram
       "data": { "labels": ["256", "512", "1024", "2048", "4096", "4096+"], "values": [12, 48, 120, 30, 4, 0] }
     },
     {
+      "section_id": "texture_size_outliers",
+      "type": "dot_chart",
+      "title": "テクスチャサイズ分布(外れ値強調)",
+      "data": {
+        "points": [{ "asset_id": "Assets/Textures/rock_d.png", "value": 8388608, "is_outlier": true }],
+        "mean": 2097152,
+        "outlier_method": "zscore"
+      }
+    },
+    {
       "section_id": "defect_summary",
       "type": "table",
       "title": "不具合一覧(severity>=warn)",
@@ -237,9 +247,14 @@ sequenceDiagram
 }
 ```
 
-現在`build_manifest()`が生成するセクションは6つ: `texture_resolution_histogram` / `lod_fade_coverage` /
-`size_distribution` / `extension_breakdown` / `last_modified_distribution`(いずれも`bar_chart`)、
-`defect_summary`(`table`)。
+現在`build_manifest()`が生成するセクションは8つ: `scan_diff`(`diff_summary`)、`texture_resolution_histogram` /
+`lod_fade_coverage` / `size_distribution` / `extension_breakdown` / `last_modified_distribution`(いずれも
+`bar_chart`)、`texture_size_outliers`(`dot_chart`、Phase 6)、`defect_summary`(`table`)。
+
+**`dot_chart`(Phase 6)**: 1点=1アセットのストリッププロット。`data.points[].is_outlier`は
+`trend/aggregations.py`の`_outlier_indices()`(z-score/IQR、`outliers()`と同一ロジック)が確定させた値を
+そのまま運ぶだけで、描画側(`static_html_adapter.py`のSVG / `webapp`の`trend/charts.py::render_dot_chart_svg()`
+再利用 / CLIの件数サマリ / Excelの点データテーブル化)はいずれも新規の外れ値判定を持たない。
 
 ---
 
@@ -307,4 +322,5 @@ python -m pytest -v
 | Phase 3 | トレンド分析モジュール | `trend/` |
 | Phase 4 | 出力アダプタ層(CLI/Excel/統一フォーマット) | `output/report_manifest.py`, `output/cli_adapter.py`, `output/excel_adapter.py` |
 | Phase 5 | CI定期実行+Kibana連携+静的HTML | `.github/workflows/insight-scan.yml`, `output/ndjson_export.py`, `output/static_html_adapter.py` |
+| Phase 6 | UI/可視化強化(ドットチャート) | `trend/aggregations.py::texture_size_points()`, `trend/charts.py::render_dot_chart_svg()`, `output/static_html_adapter.py`, `webapp/` |
 | (追加) | 操作用GUI | `webapp/` |

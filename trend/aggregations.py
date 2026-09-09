@@ -77,6 +77,33 @@ def lod_fade_coverage(db: sqlite3.Connection, scan_run_id: int) -> dict[str, flo
     return coverage
 
 
+def _outlier_indices(values: list[float], method: str, threshold: float) -> set[int]:
+    """values中で外れ値と判定されるインデックスの集合を返す(z-score または IQR)。
+    outliers()とtexture_size_points()の両方がこの1箇所の判定ロジックだけに依存する。
+    """
+    n = len(values)
+    if n == 0:
+        return set()
+    mean = sum(values) / n
+
+    if method == "zscore":
+        variance = sum((v - mean) ** 2 for v in values) / n
+        stdev = variance**0.5
+        if stdev == 0:
+            return set()
+        return {i for i, v in enumerate(values) if abs((v - mean) / stdev) >= threshold}
+
+    if method == "iqr":
+        sorted_values = sorted(values)
+        q1 = _percentile(sorted_values, 25)
+        q3 = _percentile(sorted_values, 75)
+        iqr = q3 - q1
+        lower, upper = q1 - threshold * iqr, q3 + threshold * iqr
+        return {i for i, v in enumerate(values) if v < lower or v > upper}
+
+    raise ValueError(f"unknown outlier method: {method}")
+
+
 def outliers(
     db: sqlite3.Connection,
     scan_run_id: int,
@@ -104,18 +131,15 @@ def outliers(
         return []
 
     values = [v for _, v in data]
-    n = len(values)
-    mean = sum(values) / n
-
+    outlier_idx = _outlier_indices(values, method, threshold)
     if method == "zscore":
-        variance = sum((v - mean) ** 2 for v in values) / n
+        mean = sum(values) / len(values)
+        variance = sum((v - mean) ** 2 for v in values) / len(values)
         stdev = variance**0.5
-        if stdev == 0:
-            return []
         result = [
             {"asset_id": asset_id, "value": v, "score": (v - mean) / stdev}
-            for asset_id, v in data
-            if abs((v - mean) / stdev) >= threshold
+            for i, (asset_id, v) in enumerate(data)
+            if i in outlier_idx
         ]
         return sorted(result, key=lambda r: -abs(r["score"]))
 
@@ -127,12 +151,43 @@ def outliers(
         lower, upper = q1 - threshold * iqr, q3 + threshold * iqr
         result = [
             {"asset_id": asset_id, "value": v, "bounds": [lower, upper]}
-            for asset_id, v in data
-            if v < lower or v > upper
+            for i, (asset_id, v) in enumerate(data)
+            if i in outlier_idx
         ]
         return sorted(result, key=lambda r: r["value"])
 
     raise ValueError(f"unknown outlier method: {method}")
+
+
+def texture_size_points(
+    db: sqlite3.Connection,
+    scan_run_id: int,
+    method: str = "zscore",
+    threshold: float = 2.0,
+) -> dict:
+    """asset_type='texture'のsize_bytesを、外れ値判定つきの点データとして返す
+    (Phase 6 dot_chart描画用)。判定ロジックは_outlier_indices()に一本化されており、
+    outliers()と完全に同じ計算式を使う — 描画側(static_html_adapter等)は
+    is_outlierフラグを読むだけで新規の判定ロジックを持たない。
+    """
+    rows = db.execute(
+        """
+        SELECT asset_id, size_bytes FROM asset_records
+        WHERE scan_run_id = ? AND asset_type = 'texture' AND size_bytes IS NOT NULL
+        ORDER BY size_bytes
+        """,
+        (scan_run_id,),
+    ).fetchall()
+
+    values = [float(r["size_bytes"]) for r in rows]
+    mean = sum(values) / len(values) if values else 0.0
+    outlier_idx = _outlier_indices(values, method, threshold)
+
+    points = [
+        {"asset_id": r["asset_id"], "value": r["size_bytes"], "is_outlier": i in outlier_idx}
+        for i, r in enumerate(rows)
+    ]
+    return {"points": points, "mean": mean, "outlier_method": method}
 
 
 def size_distribution(db: sqlite3.Connection, scan_run_id: int) -> dict[str, int]:

@@ -61,6 +61,18 @@ def run(
                     )
                     print(render_bar_chart(chart_data, section["title"]))
                     print()
+                elif section["type"] == "dot_chart":
+                    d = section["data"]
+                    points = d.get("points", [])
+                    outlier_count = sum(1 for p in points if p.get("is_outlier"))
+                    if points:
+                        print(
+                            f"{section['title']}: {len(points)}点 "
+                            f"(平均={d.get('mean', 0):,.0f}, 外れ値={outlier_count}件, {d.get('outlier_method')})"
+                        )
+                    else:
+                        print(f"{section['title']}: (データなし)")
+                    print()
 
             for row in defect_rows:
                 print(

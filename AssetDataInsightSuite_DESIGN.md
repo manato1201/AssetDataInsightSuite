@@ -326,3 +326,43 @@ def render_bar_chart(data: dict[str, int], title: str): ...
 - 別文書「VisualRegressionQATool設計書」のDB設計(CaptureInstruction→CapturedImage→DiffImage→EvaluationResultの追記専用チェーン)は、本書Phase 1の`scan_runs`追記専用パターンと設計思想が同系であり、両ツールでスキーマ設計の考え方を揃える
 
 **優先度注記:** 手堅いエンジニアリング。新規性のリスクは低く、SQLite・YAML駆動ルール・openpyxl・GitHub Actions cronはいずれも実績のある技術である。最大のリスクは初日から「全プロデューサー・全エンジン対応」に手を広げるスコープクリープであり、fs-scan+`.lqa`をMVPとしてから拡張する順序を厳守する。Phase 1(正規化取り込み層)さえ安定させれば、Phase 2〜5は互いに疎結合(検知・集計・出力・CIがそれぞれ別のPhase 1の読み取りクライアントに過ぎない)であるため、着手順序の融通は利く。
+
+---
+
+## Phase 6: UI/可視化強化(2026-09-08追記)
+
+**背景**: X上の@ozwxy氏の実演(GPT-6 Astraによる高品質UIコンポーネント生成デモ、2026年9月7日投稿)を受け、ユーザーがUI/アニメーション面の強化を明示的に要望。トレンド可視化との相性が高い1種のコンポーネントを選定した。
+
+### ドットチャート(Dot Chart)
+
+**実装方針:** 新規の集計ロジックは作らない。Phase 3 `trend/aggregations.py`の`outliers`/`size_distribution`/`texture_resolution_histogram`の戻り値をそのまま描画するだけであり、Phase 5の`output/static_html_adapter.py`が生成する軽量フォールバック(`reports/{scan_run_id}/index.html`)の具体的な描画コンポーネントとして位置づける。1点=1アセットのストリッププロット配置(ビースウォーム的な重なり回避)とし、`outliers`がz-score/IQRで「平均より重いデータ」と判定した点は色を変えて強調する。
+
+1. `report_manifest.json`のsection typeに`dot_chart`を追加する(Phase 4のスキーマ拡張。書き込みは引き続き単一の`ReportManifestBuilder`のみ):
+   ```json
+   { "section_id": "texture_size_outliers", "type": "dot_chart", "title": "テクスチャサイズ分布(外れ値強調)",
+     "data": { "points": [{"asset_id": "Assets/Textures/rock_d.png", "value": 8388608, "is_outlier": true}],
+               "mean": 2097152, "outlier_method": "zscore" } }
+   ```
+2. `static_html_adapter.py`にSVGレンダラーを追加する。`points`をx軸=valueでビースウォーム配置し、`is_outlier`はfill色の切替のみに使う(判定ロジックはPhase 3のまま):
+   ```python
+   # output/static_html_adapter.py
+   def render_dot_chart(points: list[dict], width: int = 640, dot_r: int = 4) -> str:
+       svg = [f'<svg viewBox="0 0 {width} 120" class="dot-chart">']
+       for p in points:
+           cls = "dot-outlier" if p["is_outlier"] else "dot-normal"
+           svg.append(f'<circle class="{cls}" cx="{scale_x(p["value"], width)}" cy="60" r="{dot_r}"/>')
+       svg.append("</svg>")
+       return "".join(svg)
+   ```
+3. アニメーションはPhase 5と同じくCSSの`transition`のみ。JSアニメーションライブラリは導入しない:
+   ```css
+   .dot-chart circle { transition: r 0.3s ease-out; }
+   .dot-outlier { fill: var(--color-outlier, #e05252); }
+   .dot-normal { fill: var(--color-normal, #6b8fb5); }
+   ```
+
+**検証チェックリスト:**
+- [ ] `dot_chart`セクションの`data.points`が`aggregations.py`の`outliers`/`size_distribution`の戻り値をそのままマッピングしたものであり、`static_html_adapter.py`側に新規の外れ値判定ロジックが存在しない
+- [ ] `render_dot_chart`が外部CDN・JSフレームワークに依存せず、オフラインで正しく描画される(Phase 5非機能要件の継承確認)
+- [ ] `is_outlier=true`の点が`is_outlier=false`の点と視覚的に区別可能な色で描画される
+- [ ] `report_manifest.json`への`dot_chart`セクション追加が単一の`ReportManifestBuilder`経由のみで行われている

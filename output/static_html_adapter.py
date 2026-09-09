@@ -18,6 +18,7 @@ from pathlib import Path
 
 from core import db as db_module
 from output.report_manifest import build_manifest
+from trend.charts import render_dot_chart_svg
 
 _SEVERITY_COLOR = {
     "fail": "#e23b4a",
@@ -109,6 +110,13 @@ body {
 .diff-tile.changed .n { color: #ec7e00; }
 .diff-tile.removed .n { color: #e23b4a; }
 .diff-tile .l { font-size: 13px; color: #505a63; }
+
+.dot-chart circle { transition: r 0.3s ease-out; }
+.dot-outlier { fill: var(--color-outlier, #e05252); }
+.dot-normal { fill: var(--color-normal, #6b8fb5); }
+.dot-mean-line { stroke: #c9c9cd; stroke-dasharray: 4 3; stroke-width: 1; }
+.dot-chart circle:hover { r: 6; }
+.dot-caption { color: #8d969e; font-size: 12px; margin: 8px 0 0 0; }
 
 table { width: 100%; border-collapse: collapse; font-size: 14px; }
 th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #e2e2e7; }
@@ -202,6 +210,22 @@ def _render_diff_summary(section: dict) -> str:
     return f'<div class="card"><h2 class="section-title">{escape(section["title"])}</h2>{body}</div>'
 
 
+def _render_dot_chart(section: dict) -> str:
+    data = section["data"]
+    points = data.get("points", [])
+    if not points:
+        body = '<p style="color:#505a63;font-size:14px;margin:0;">テクスチャがありません。</p>'
+    else:
+        outlier_count = sum(1 for p in points if p.get("is_outlier"))
+        svg = render_dot_chart_svg(data)
+        body = (
+            svg + f'<p class="dot-caption">平均 {data.get("mean", 0):,.0f} bytes '
+            f"({escape(str(data.get('outlier_method', '')))}) &middot; "
+            f"外れ値 {outlier_count}/{len(points)}件</p>"
+        )
+    return f'<div class="card"><h2 class="section-title">{escape(section["title"])}</h2>{body}</div>'
+
+
 def render_html(manifest: dict) -> str:
     sections_html = []
     for section in manifest["sections"]:
@@ -209,6 +233,8 @@ def render_html(manifest: dict) -> str:
             sections_html.append(_render_diff_summary(section))
         elif section["type"] == "bar_chart":
             sections_html.append(_render_bar_chart(section))
+        elif section["type"] == "dot_chart":
+            sections_html.append(_render_dot_chart(section))
         elif section["type"] == "table":
             sections_html.append(_render_table(section))
 

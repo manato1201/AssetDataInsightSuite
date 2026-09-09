@@ -71,7 +71,7 @@ INSIGHT_WEBHOOK_URL=<WEBHOOK_URL> python -m webapp.app --db insight.db --port 50
 起動後 `http://127.0.0.1:5000` を開く。
 
 - **Dashboard** — producer/target pathを指定してスキャン実行(非同期ジョブ、進捗ポーリング画面へ遷移)、スキャン履歴一覧
-- **run詳細** — `report_manifest.json` の内容をそのまま表示(前回scanとの新規/変更/削除アセット差分を含む)。Excel/NDJSONダウンロード、静的HTMLレポート再生成、Slack/Teamsへの手動通知もここから
+- **run詳細** — `report_manifest.json` の内容をそのまま表示(前回scanとの新規/変更/削除アセット差分、テクスチャサイズ分布のドットチャート[外れ値強調]を含む)。Excel/NDJSONダウンロード、静的HTMLレポート再生成、Slack/Teamsへの手動通知もここから
 - **Defects** — 検出中の`defect_records`一覧。severity絞り込み・キーワード検索(asset_id/rule_id/message)・CSVエクスポート、最近解消したdefectの一覧
 - **Trend** — オープンなdefect数/アセット数/合計サイズ/新規検出defect数、それぞれのscan_run横断推移
 - **Rules** — `rules/definitions/*.yaml` をブラウザ上で直接編集(保存時にYAML構文とrule_id/moduleキーを検証)
@@ -95,7 +95,7 @@ uv pip install -e ".[dev]" --python .venv
 .venv/Scripts/python -m pytest -v
 ```
 
-64件のpytestが全て通れば、取り込み・ルール検知(defect解決の追跡を含む)・トレンド集計・CLI/Excel/NDJSON/静的HTML/Webhook通知・GUI(非同期スキャン・ルールエディタ・検索/CSV export)の主要パスは検証済み。
+71件のpytestが全て通れば、取り込み・ルール検知(defect解決の追跡を含む)・トレンド集計(ドットチャート用の外れ値判定を含む)・CLI/Excel/NDJSON/静的HTML/Webhook通知・GUI(非同期スキャン・ルールエディタ・検索/CSV export)の主要パスは検証済み。
 
 ### 2. GUIを実際に触って確認する
 

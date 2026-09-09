@@ -71,6 +71,12 @@ def build_manifest(conn: sqlite3.Connection, scan_run_id: int) -> ReportManifest
         {"labels": list(hist), "values": list(hist.values())},
     )
 
+    size_points = aggregations.texture_size_points(conn, scan_run_id)
+    builder.add_section(
+        "texture_size_outliers", "dot_chart", "テクスチャサイズ分布(外れ値強調)",
+        size_points,
+    )
+
     coverage = aggregations.lod_fade_coverage(conn, scan_run_id)
     builder.add_section(
         "lod_fade_coverage", "bar_chart", "LOD/フェード設定カバレッジ",
