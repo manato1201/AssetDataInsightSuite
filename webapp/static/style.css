@@ -159,6 +159,13 @@ th { color: var(--mute); font-weight: 600; text-transform: uppercase; font-size:
 
 .filter-row { display: flex; gap: 8px; margin-bottom: 16px; }
 
+.dot-chart { width: 100%; height: auto; }
+.dot-chart circle { transition: r 0.3s ease-out; }
+.dot-chart circle:hover { r: 6; }
+.dot-normal { fill: var(--primary); }
+.dot-outlier { fill: var(--accent-danger); }
+.dot-mean-line { stroke: var(--hairline-light); stroke-dasharray: 4 3; stroke-width: 1; }
+
 .yaml-editor {
   width: 100%;
   min-height: 320px;

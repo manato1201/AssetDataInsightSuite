@@ -47,6 +47,8 @@ def test_trigger_scan_runs_in_background_and_redirects_to_run_detail(
     assert resp.status_code == 200
     assert "scan_run #1".encode() in resp.data
     assert "不具合一覧".encode() in resp.data
+    assert b'<svg viewBox="0 0 640 140" class="dot-chart">' in resp.data
+    assert "テクスチャサイズ分布".encode() in resp.data
 
 
 def test_job_status_page_renders_while_and_after_running(db_path, fs_scan_sample_dir):

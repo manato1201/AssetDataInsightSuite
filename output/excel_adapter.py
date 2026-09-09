@@ -73,6 +73,16 @@ def write_workbook(builder: ReportManifestBuilder, out_path: str) -> None:
                 for asset_id in data[kind]:
                     ws.append(["", asset_id])
 
+        elif section["type"] == "dot_chart":
+            # SVG has no Excel equivalent; transcribe the same per-point data
+            # (is_outlier already decided by trend/aggregations.py) as a table.
+            ws.append(["mean", data.get("mean")])
+            ws.append(["outlier_method", data.get("outlier_method")])
+            ws.append([])
+            ws.append(["asset_id", "value", "is_outlier"])
+            for point in data.get("points", []):
+                ws.append([point["asset_id"], point["value"], point["is_outlier"]])
+
     wb.save(out_path)
 
 

@@ -60,6 +60,20 @@
       <p class="meta">データがありません</p>
     {% endfor %}
   </section>
+  {% elif section['type'] == 'dot_chart' %}
+  <section class="card">
+    <h2>{{ section['title'] }}</h2>
+    {% set d = section['data'] %}
+    {% if d['points'] %}
+      {{ d['svg'] | safe }}
+      <p class="meta">
+        平均 {{ "{:,.0f}".format(d['mean']) }} bytes ({{ d['outlier_method'] }}) &middot;
+        外れ値 {{ d['points'] | selectattr('is_outlier') | list | length }}/{{ d['points'] | length }}件
+      </p>
+    {% else %}
+      <p class="meta">テクスチャがありません</p>
+    {% endif %}
+  </section>
   {% elif section['type'] == 'table' %}
   <section class="card">
     <h2>{{ section['title'] }}</h2>

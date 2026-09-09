@@ -106,3 +106,47 @@ def test_static_html_adapter_generates_offline_report(
     assert "http://" not in html
     assert "https://" not in html
     assert f"scan_run #{scan_run_id}" in html
+
+
+def test_manifest_includes_dot_chart_section_for_texture_sizes(db_path, fs_scan_sample_dir):
+    scan_run_id = _seeded_scan(db_path, fs_scan_sample_dir)
+    with db_module.open_db(db_path) as conn:
+        texture_asset_ids = {
+            r["asset_id"]
+            for r in db_module.fetch_asset_records(conn, scan_run_id)
+            if r["asset_type"] == "texture"
+        }
+        manifest = build_manifest(conn, scan_run_id).build()
+
+    section = next(s for s in manifest["sections"] if s["section_id"] == "texture_size_outliers")
+    assert section["type"] == "dot_chart"
+    points = section["data"]["points"]
+    assert {p["asset_id"] for p in points} == texture_asset_ids
+    assert all({"asset_id", "value", "is_outlier"} <= p.keys() for p in points)
+
+
+def test_static_html_adapter_renders_dot_chart_svg(db_path, fs_scan_sample_dir, tmp_path):
+    scan_run_id = _seeded_scan(db_path, fs_scan_sample_dir)
+    out_path = static_html_adapter.generate(
+        db_path, scan_run_id, out_dir=str(tmp_path / "reports")
+    )
+    html = out_path.read_text(encoding="utf-8")
+    assert "テクスチャサイズ分布" in html
+    assert '<svg viewBox="0 0 640 140" class="dot-chart">' in html
+
+
+def test_excel_adapter_writes_dot_chart_points_as_table(db_path, fs_scan_sample_dir, tmp_path):
+    scan_run_id = _seeded_scan(db_path, fs_scan_sample_dir)
+    with db_module.open_db(db_path) as conn:
+        builder = build_manifest(conn, scan_run_id)
+    manifest = builder.build()
+
+    xlsx_path = tmp_path / "report.xlsx"
+    write_workbook(builder, str(xlsx_path))
+    wb = load_workbook(xlsx_path)
+
+    section = next(s for s in manifest["sections"] if s["section_id"] == "texture_size_outliers")
+    ws = wb[section["title"]]
+    header_row = [cell.value for cell in ws[4]]
+    assert header_row == ["asset_id", "value", "is_outlier"]
+    assert ws.max_row == 4 + len(section["data"]["points"])

@@ -3,6 +3,7 @@ from __future__ import annotations
 from core import db as db_module
 from core.schema import AssetRecord, CheckResult
 from trend import aggregations
+from trend.charts import render_dot_chart_svg
 
 
 def _seed_texture_records(db_path: str, sizes_and_res: list[tuple[int, int]]) -> int:
@@ -185,3 +186,56 @@ def test_open_defect_count_over_time_reflects_resolution(db_path, tmp_path):
 
     assert series[str(run1)] >= 1  # naming_convention was open at run1
     assert series[str(run2)] < series[str(run1)]  # resolved by run2
+
+
+def test_texture_size_points_flags_the_same_outliers_as_outliers_zscore(db_path):
+    # 8 normal-ish sizes around 1000 bytes, one clear outlier at 100000.
+    sizes_and_res = [(1000 + i * 10, 256) for i in range(8)] + [(100000, 256)]
+    scan_run_id = _seed_texture_records(db_path, sizes_and_res)
+
+    with db_module.open_db(db_path) as conn:
+        result = aggregations.texture_size_points(
+            conn, scan_run_id, method="zscore", threshold=1.5
+        )
+
+    assert len(result["points"]) == 9
+    outliers = [p for p in result["points"] if p["is_outlier"]]
+    assert len(outliers) == 1
+    assert outliers[0]["value"] == 100000
+    assert result["mean"] == sum(v for v, _ in sizes_and_res) / len(sizes_and_res)
+    assert result["outlier_method"] == "zscore"
+
+
+def test_texture_size_points_empty_when_no_textures(db_path):
+    with db_module.open_db(db_path) as conn:
+        scan_run_id = db_module.start_scan_run(
+            conn, "fs_scan", "0.1.0", "2026-08-01T00:00:00Z"
+        )
+        db_module.finish_scan_run(conn, scan_run_id, "2026-08-01T00:05:00Z", "success")
+        result = aggregations.texture_size_points(conn, scan_run_id)
+
+    assert result == {"points": [], "mean": 0.0, "outlier_method": "zscore"}
+
+
+def test_render_dot_chart_svg_marks_outlier_points_with_a_distinct_class():
+    data = {
+        "points": [
+            {"asset_id": "a.png", "value": 1000, "is_outlier": False},
+            {"asset_id": "b.png", "value": 1010, "is_outlier": False},
+            {"asset_id": "c.png", "value": 100000, "is_outlier": True},
+        ],
+        "mean": 34003.3,
+        "outlier_method": "zscore",
+    }
+    svg = render_dot_chart_svg(data)
+    assert svg.startswith("<svg")
+    assert svg.count("<circle") == 3
+    assert 'class="dot-outlier"' in svg
+    assert svg.count('class="dot-normal"') == 2
+    assert "dot-mean-line" in svg
+
+
+def test_render_dot_chart_svg_handles_no_points():
+    svg = render_dot_chart_svg({"points": [], "mean": 0, "outlier_method": "zscore"})
+    assert svg.startswith("<svg")
+    assert "<circle" not in svg

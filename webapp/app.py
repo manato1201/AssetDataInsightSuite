@@ -51,6 +51,7 @@ from rules.definition_editor import (
 from rules.engine import DEFINITIONS_DIR, load_rule_definitions
 from rules.run_checks import run_checks
 from trend import aggregations
+from trend.charts import render_dot_chart_svg
 from webapp.jobs import JobStore
 
 DEFAULT_DB_PATH = os.environ.get("INSIGHT_DB_PATH", "insight.db")
@@ -70,6 +71,16 @@ def _filter_defects(rows: list, severity_filter: str | None, query: str) -> list
             or q in (r["message"] or "").lower()
         ]
     return rows
+
+
+def _inject_dot_chart_svgs(manifest: dict) -> dict:
+    """Pre-renders SVG markup for any dot_chart sections so the template can
+    just drop it in with `| safe` — the beeswarm layout algorithm lives once
+    in trend/charts.py, not duplicated in Jinja."""
+    for section in manifest["sections"]:
+        if section["type"] == "dot_chart":
+            section["data"]["svg"] = render_dot_chart_svg(section["data"])
+    return manifest
 
 
 def create_app(
@@ -156,7 +167,7 @@ def create_app(
         return render_template(
             "run_detail.html",
             run=run_row,
-            manifest=builder.build(),
+            manifest=_inject_dot_chart_svgs(builder.build()),
             webhook_configured=bool(app.config["WEBHOOK_URL"]),
         )
 
