@@ -70,6 +70,11 @@ INSIGHT_WEBHOOK_URL=<WEBHOOK_URL> python -m webapp.app --db insight.db --port 50
 
 起動後 `http://127.0.0.1:5000` を開く。
 
+**ブラウザ経由の攻撃への最小限のガード**(`webapp/security.py`。認証ではない): Host はループバックのみ受け付け、
+変更操作(`POST /scan`・`/rules/<file>/edit`・`/runs/<id>/notify`)は同一オリジンの画面からだけ通す
+(別サイトのページからのフォーム自動送信を防ぐ。`curl` など Origin を付けないクライアントは通る)。
+`127.0.0.1` / `localhost` 以外のホスト名で開く場合は、環境変数 `INSIGHT_ALLOWED_HOSTS`(カンマ区切り)に追加する。
+
 - **Dashboard** — producer/target pathを指定してスキャン実行(非同期ジョブ、進捗ポーリング画面へ遷移)、スキャン履歴一覧
 - **run詳細** — `report_manifest.json` の内容をそのまま表示(前回scanとの新規/変更/削除アセット差分、テクスチャサイズ分布のドットチャート[外れ値強調]を含む)。Excel/NDJSONダウンロード、静的HTMLレポート再生成、Slack/Teamsへの手動通知もここから
 - **Defects** — 検出中の`defect_records`一覧。severity絞り込み・キーワード検索(asset_id/rule_id/message)・CSVエクスポート、最近解消したdefectの一覧

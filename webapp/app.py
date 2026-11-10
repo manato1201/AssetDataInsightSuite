@@ -7,7 +7,9 @@ No aggregation or judgement logic lives here; the GUI only triggers and
 displays what the pipeline already computes.
 
 Intended for local, single-user use (`--host 127.0.0.1` by default) — there
-is no authentication layer.
+is no authentication layer. A Host allowlist and a same-origin check on unsafe
+methods (webapp/security.py) keep other websites in the user's browser from
+driving it; they are not authentication.
 """
 
 from __future__ import annotations
@@ -53,6 +55,7 @@ from rules.run_checks import run_checks
 from trend import aggregations
 from trend.charts import render_dot_chart_svg
 from webapp.jobs import JobStore
+from webapp.security import install_request_guard
 
 DEFAULT_DB_PATH = os.environ.get("INSIGHT_DB_PATH", "insight.db")
 DEFAULT_WEBHOOK_URL = os.environ.get("INSIGHT_WEBHOOK_URL") or None
@@ -89,6 +92,7 @@ def create_app(
     webhook_url: str | None = DEFAULT_WEBHOOK_URL,
 ) -> Flask:
     app = Flask(__name__)
+    install_request_guard(app)
     app.config["DB_PATH"] = db_path
     app.config["DEFINITIONS_DIR"] = definitions_dir
     app.config["WEBHOOK_URL"] = webhook_url
