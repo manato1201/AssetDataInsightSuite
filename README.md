@@ -10,8 +10,8 @@
 |---|---|
 | テスト | `.venv/Scripts/python -m pytest -q`(文書の検査を含む) |
 | GUI | Flask のローカル専用。**認証なし**(Host・Origin の検査のみ) |
-| 既知の問題 | [docs/learn/index.md](docs/learn/index.md)(不具合の並び・ルール YAML の `module` 未検証 ほか) |
-| 学習資料 | 全体像・コードの読み方・拡張・用語集は**未作成**(講義と既知の問題のみ) |
+| 既知の問題 | [docs/learn/06-troubleshooting-maintenance.md](docs/learn/06-troubleshooting-maintenance.md)(不具合の並び・ルール YAML の `module` 未検証 ほか) |
+| 学習資料 | 講義 5 回 + 保守・拡張の学習資料 7 本(全体像・コードの読み方・内側・拡張・テスト・トラブル・用語集) |
 
 ## クイックスタート
 
@@ -32,7 +32,7 @@ Excel・NDJSON・静的 HTML・Webhook・GUI の操作手順・環境変数は [
 |---|---|
 | 全体の地図 | [docs/index.md](docs/index.md) |
 | **基礎から学ぶ**(講義 5 回・実行できる例つき) | [docs/lecture/](docs/lecture/index.md) |
-| 既知の問題 | [docs/learn/index.md](docs/learn/index.md) |
+| 保守・拡張(学習資料) | [docs/learn/](docs/learn/index.md) |
 | セットアップ・GUI・動作確認の**詳細**(旧 README) | [docs/reference/setup-and-operations.md](docs/reference/setup-and-operations.md) |
 | 図と技術解説(Mermaid) | [docs/TECHNICAL_GUIDE.md](docs/TECHNICAL_GUIDE.md)・[HTML 版](docs/technical_guide.html) |
 
