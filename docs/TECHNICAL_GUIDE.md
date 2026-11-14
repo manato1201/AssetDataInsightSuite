@@ -26,6 +26,7 @@
 既存のCLIモジュールを直接呼び出す薄いレイヤーであり、独自の集計・判定ロジックを持たない。
 
 ```mermaid
+%%{init: {"theme":"base","fontFamily":"Noto Sans JP, Hiragino Sans, Meiryo, sans-serif","themeVariables":{"fontFamily":"Noto Sans JP, Hiragino Sans, Meiryo, sans-serif","primaryColor":"#ffffff","primaryBorderColor":"#d0d5dd","primaryTextColor":"#101828","lineColor":"#667085","clusterBkg":"#f2f4f7","clusterBorder":"#d0d5dd","edgeLabelBackground":"#ffffff"},"flowchart":{"wrappingWidth":480,"nodeSpacing":40,"rankSpacing":56,"padding":14},"sequence":{"mirrorActors":false,"wrap":false,"width":150,"actorMargin":30,"messageMargin":34}}}%%
 flowchart LR
     A["アセット群<br/>.lqa / ファイルシステム / Unity .meta"] -->|scan| B["ingest/adapters<br/>(lqa / fs_scan / unity_asset)"]
     B -->|"AssetRecord[]"| DB[("insight.db<br/>scan_runs / asset_records / check_results")]
@@ -63,6 +64,7 @@ flowchart LR
 Phase 3のトレンド集計は`asset_records`とのJOINなしに`GROUP BY scan_run_id`だけで書ける。
 
 ```mermaid
+%%{init: {"theme":"base","fontFamily":"Noto Sans JP, Hiragino Sans, Meiryo, sans-serif","themeVariables":{"fontFamily":"Noto Sans JP, Hiragino Sans, Meiryo, sans-serif","primaryColor":"#ffffff","primaryBorderColor":"#d0d5dd","primaryTextColor":"#101828","lineColor":"#667085","clusterBkg":"#f2f4f7","clusterBorder":"#d0d5dd","edgeLabelBackground":"#ffffff"},"flowchart":{"wrappingWidth":480,"nodeSpacing":40,"rankSpacing":56,"padding":14},"sequence":{"mirrorActors":false,"wrap":false,"width":150,"actorMargin":30,"messageMargin":34}}}%%
 erDiagram
     scan_runs ||--o{ asset_records : "1回のscanで複数asset"
     scan_runs ||--o{ check_results : "scan_run_idを直接FK"
@@ -128,6 +130,7 @@ erDiagram
 `.github/workflows/insight-scan.yml`が`schedule`(cron)と`workflow_dispatch`(手動)の両方で起動する。
 
 ```mermaid
+%%{init: {"theme":"base","fontFamily":"Noto Sans JP, Hiragino Sans, Meiryo, sans-serif","themeVariables":{"fontFamily":"Noto Sans JP, Hiragino Sans, Meiryo, sans-serif","primaryColor":"#ffffff","primaryBorderColor":"#d0d5dd","primaryTextColor":"#101828","lineColor":"#667085","clusterBkg":"#f2f4f7","clusterBorder":"#d0d5dd","edgeLabelBackground":"#ffffff"},"flowchart":{"wrappingWidth":480,"nodeSpacing":40,"rankSpacing":56,"padding":14},"sequence":{"mirrorActors":false,"wrap":false,"width":150,"actorMargin":30,"messageMargin":34}}}%%
 sequenceDiagram
     participant GHA as GitHub Actions
     participant Ingest as ingest.run_scan
@@ -158,6 +161,7 @@ sequenceDiagram
 GUIはCLIと同じ関数を直接呼ぶだけで、判定ロジックの複製は一切ない。
 
 ```mermaid
+%%{init: {"theme":"base","fontFamily":"Noto Sans JP, Hiragino Sans, Meiryo, sans-serif","themeVariables":{"fontFamily":"Noto Sans JP, Hiragino Sans, Meiryo, sans-serif","primaryColor":"#ffffff","primaryBorderColor":"#d0d5dd","primaryTextColor":"#101828","lineColor":"#667085","clusterBkg":"#f2f4f7","clusterBorder":"#d0d5dd","edgeLabelBackground":"#ffffff"},"flowchart":{"wrappingWidth":480,"nodeSpacing":40,"rankSpacing":56,"padding":14},"sequence":{"mirrorActors":false,"wrap":false,"width":150,"actorMargin":30,"messageMargin":34}}}%%
 sequenceDiagram
     participant User as ユーザー
     participant Flask as webapp.app (Flask)
