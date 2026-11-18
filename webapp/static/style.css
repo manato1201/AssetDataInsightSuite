@@ -185,3 +185,48 @@ th { color: var(--mute); font-weight: 600; text-transform: uppercase; font-size:
   .summary-row { grid-template-columns: repeat(2, 1fr); }
   .bar-label { width: 90px; font-size: 12px; }
 }
+
+/* --- Small one-shot motion (transform / opacity only) ---------------------
+ * Wrapped in no-preference, so reduced-motion users get none of it.
+ * Scope: static pages only. The job-status bar (#job-bar, not inside .bar-row)
+ * is left alone because that page reloads while running and would replay it. */
+:root {
+  --dur-quick: 200ms;
+  --dur-base: 320ms;
+  --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* KPI tiles: rise in one after another */
+  .stat-tile { animation: tile-in var(--dur-base) var(--ease-out) both; }
+  .stat-tile:nth-child(2) { animation-delay: 60ms; }
+  .stat-tile:nth-child(3) { animation-delay: 120ms; }
+  .stat-tile:nth-child(4) { animation-delay: 180ms; }
+
+  /* Bar charts: grow from the left once on load */
+  .bar-row .bar-fill {
+    transform-origin: left center;
+    animation: bar-grow 600ms var(--ease-out) both;
+  }
+
+  /* Error flash: one short side-to-side shake */
+  .flash-error { animation: shake-x var(--dur-base) ease-in-out both; }
+}
+
+@keyframes tile-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes bar-grow {
+  from { transform: scaleX(0); }
+  to { transform: none; }
+}
+
+@keyframes shake-x {
+  0%, 100% { transform: none; }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(2px); }
+}

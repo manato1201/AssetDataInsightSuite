@@ -361,6 +361,8 @@ def render_bar_chart(data: dict[str, int], title: str): ...
    .dot-normal { fill: var(--color-normal, #6b8fb5); }
    ```
 
+4. (2026-11-18)運用GUI(`webapp/static/style.css`)にだけ、1回きりの小さな動きを3つ足した: KPIタイルの順次表示(`tile-in`)・棒グラフの左からの伸長(`bar-grow`、`.bar-row`内のみ。実行状況ページは自動更新で再生されるため対象外)・エラーflashの横震え(`shake-x`)。transform/opacityのみ、`prefers-reduced-motion: no-preference`の中だけ。
+
 **検証チェックリスト:**
 - [ ] `dot_chart`セクションの`data.points`が`aggregations.py`の`outliers`/`size_distribution`の戻り値をそのままマッピングしたものであり、`static_html_adapter.py`側に新規の外れ値判定ロジックが存在しない
 - [ ] `render_dot_chart`が外部CDN・JSフレームワークに依存せず、オフラインで正しく描画される(Phase 5非機能要件の継承確認)
