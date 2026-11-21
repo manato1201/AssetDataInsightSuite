@@ -2,6 +2,7 @@
 name = "asset-data-insight-suite"
 version = "0.1.0"
 description = "Unified ingestion -> defect detection -> trend analysis -> reporting pipeline for game asset data."
+license = "PolyForm-Noncommercial-1.0.0"
 requires-python = ">=3.11"
 dependencies = [
     "PyYAML>=6.0",
@@ -19,7 +20,7 @@ pythonpath = ["."]
 testpaths = ["tests"]
 
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
