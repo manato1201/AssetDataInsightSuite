@@ -27,19 +27,19 @@
 
 <section class="summary-row">
   <div class="stat-tile">
-    <span class="stat-value">{{ total_defects }}</span>
+    <span class="stat-value" data-count="{{ total_defects }}">{{ total_defects }}</span>
     <span class="stat-label">総defect数</span>
   </div>
   <div class="stat-tile severity-fail">
-    <span class="stat-value">{{ severity_counts.get('fail', 0) }}</span>
+    <span class="stat-value" data-count="{{ severity_counts.get('fail', 0) }}">{{ severity_counts.get('fail', 0) }}</span>
     <span class="stat-label">fail</span>
   </div>
   <div class="stat-tile severity-warn">
-    <span class="stat-value">{{ severity_counts.get('warn', 0) }}</span>
+    <span class="stat-value" data-count="{{ severity_counts.get('warn', 0) }}">{{ severity_counts.get('warn', 0) }}</span>
     <span class="stat-label">warn</span>
   </div>
   <div class="stat-tile severity-info">
-    <span class="stat-value">{{ severity_counts.get('info', 0) }}</span>
+    <span class="stat-value" data-count="{{ severity_counts.get('info', 0) }}">{{ severity_counts.get('info', 0) }}</span>
     <span class="stat-label">info</span>
   </div>
 </section>

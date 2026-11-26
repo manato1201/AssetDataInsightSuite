@@ -5,7 +5,23 @@
   <h1>{{ filename }}</h1>
   <p class="meta">保存時にYAML構文と rule_id / module キーの有無を検証する(不正なYAMLは保存されない)。</p>
   <form method="post">
-    <textarea name="source" class="yaml-editor" spellcheck="false">{{ source }}</textarea>
+    <div class="drop-wrap">
+      <div class="drop-zone" data-yaml-drop="rule-source" role="button" tabindex="0"
+           aria-label="YAML ファイルを読み込んで本文を置き換える(ドロップ、またはクリックで選択)">
+        <div class="drop-core" aria-hidden="true">
+          <span class="drop-flood"></span>
+          <svg class="drop-up" viewBox="0 0 24 24"><path d="M12 17V6M7 11l5-5 5 5"/></svg>
+          <svg class="drop-ok" viewBox="0 0 24 24"><path class="drop-tick" d="M6 12.5l4 4 8-9"/></svg>
+        </div>
+        <div class="drop-text" aria-hidden="true">
+          <span class="drop-title">YAML ファイルをここにドロップ</span>
+          <span class="drop-sub">クリックで選ぶこともできます。本文を置き換えます(.yaml / .yml、256 KB まで)</span>
+        </div>
+        <input type="file" accept=".yaml,.yml" hidden>
+      </div>
+      <p class="sr-only" role="status" aria-live="polite"></p>
+    </div>
+    <textarea name="source" id="rule-source" class="yaml-editor" spellcheck="false">{{ source }}</textarea>
     <div class="action-row">
       <button type="submit" class="btn btn-primary">保存</button>
       <a class="btn btn-outline" href="{{ url_for('rules_list') }}">キャンセル</a>

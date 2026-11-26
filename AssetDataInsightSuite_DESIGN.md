@@ -362,6 +362,7 @@ def render_bar_chart(data: dict[str, int], title: str): ...
    ```
 
 4. (2026-11-18)運用GUI(`webapp/static/style.css`)にだけ、1回きりの小さな動きを3つ足した: KPIタイルの順次表示(`tile-in`)・棒グラフの左からの伸長(`bar-grow`、`.bar-row`内のみ。実行状況ページは自動更新で再生されるため対象外)・エラーflashの横震え(`shake-x`)。transform/opacityのみ、`prefers-reduced-motion: no-preference`の中だけ。
+5. (2026-11-26)ばねの動きを2つ足した(`webapp/static/motion.js`、依存なし・オフラインで動く。ばねの値は designbookmark の Stat card / File drop と同じ剛性・減衰。コードは写さず自作): ①Dashboard の KPI タイル4枚の数字が0から数え上がる(`data-count`、ばね 160/22、タイルの表示と同じ60msずつずらす。HTML には最終の値を書いておくので、JS が無くても値は読める)②ルール編集画面に YAML ファイルのドロップ欄(`data-yaml-drop`。.yaml/.yml・256KBまで。ブラウザの中で本文に読み込むだけで、書き込みは今の「保存」とその検証を通る。サーバー側は変えない)。動きを減らす設定では、ばねを使わず最終の値を出す。
 
 **検証チェックリスト:**
 - [ ] `dot_chart`セクションの`data.points`が`aggregations.py`の`outliers`/`size_distribution`の戻り値をそのままマッピングしたものであり、`static_html_adapter.py`側に新規の外れ値判定ロジックが存在しない

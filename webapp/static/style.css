@@ -181,6 +181,77 @@ th { color: var(--mute); font-weight: 600; text-transform: uppercase; font-size:
   box-sizing: border-box;
 }
 
+.stat-value { font-variant-numeric: tabular-nums; }
+
+/* --- YAML file drop (rule editor) ------------------------------------------
+ * Springs live in motion.js; CSS only sets the resting look.
+ * --h (0..1) is the drag-over amount written by motion.js. */
+.drop-wrap { margin-bottom: 16px; }
+.drop-zone {
+  --h: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  border: 1px dashed var(--stone);
+  border-radius: var(--radius-lg);
+  background: var(--surface-soft);
+  cursor: pointer;
+  overflow: hidden;
+  user-select: none;
+}
+.drop-zone::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--primary);
+  opacity: calc(var(--h) * 0.08);
+  box-shadow: inset 0 0 0 2px var(--primary);
+  pointer-events: none;
+}
+.drop-zone:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.drop-core {
+  position: relative;
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-full);
+  background: var(--canvas-light);
+  border: 1px solid var(--hairline-light);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+.drop-flood {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--accent-green);
+  transform: scale(0);
+}
+.drop-up, .drop-ok { position: absolute; width: 22px; height: 22px; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.drop-up { stroke: var(--ink); }
+.drop-ok { stroke: #ffffff; opacity: 0; }
+.drop-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.drop-title { font-size: 14px; font-weight: 600; color: var(--ink); }
+.drop-sub { font-size: 13px; color: var(--mute); overflow-wrap: anywhere; }
+.drop-zone[data-tone="ok"] .drop-title { color: var(--accent-green); }
+.drop-zone[data-tone="error"] .drop-title { color: var(--accent-danger); }
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 @media (max-width: 640px) {
   .summary-row { grid-template-columns: repeat(2, 1fr); }
   .bar-label { width: 90px; font-size: 12px; }
@@ -211,6 +282,7 @@ th { color: var(--mute); font-weight: 600; text-transform: uppercase; font-size:
 
   /* Error flash: one short side-to-side shake */
   .flash-error { animation: shake-x var(--dur-base) ease-in-out both; }
+  .drop-zone.is-shaking .drop-text { animation: shake-x var(--dur-base) ease-in-out both; }
 }
 
 @keyframes tile-in {
